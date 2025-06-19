@@ -32,6 +32,14 @@ import {
 import { toast } from "sonner";
 import { DEFAULT_SUPPLIER } from "@/constants/supplier";
 import { formatPrice } from "@/utils/format";
+import { useNavigate } from "react-router-dom";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 interface DeliveryFormData {
   fullName: string;
@@ -66,6 +74,13 @@ const Cart = () => {
     city: "",
     notes: "",
   });
+  const [branches, setBranches] = useState<{ name: string; phone: string }[]>(
+    []
+  );
+  const [selectedBranch, setSelectedBranch] = useState<{
+    name: string;
+    phone: string;
+  } | null>(null);
 
   const {
     register,
@@ -101,6 +116,21 @@ const Cart = () => {
       notes: watch("notes") || "",
     });
   }, [fullName, phoneNumber, address, city, watch]);
+
+  // Fetch branches from API on mount
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const response = await fetch("http://localhost:3001/api/store");
+        if (!response.ok) return;
+        const data = await response.json();
+        if (Array.isArray(data.branches)) {
+          setBranches(data.branches);
+        }
+      } catch {}
+    };
+    fetchBranches();
+  }, []);
 
   // Group cart items by supplier
   const supplierGroups: SupplierGroup[] = cart.reduce(
@@ -156,48 +186,110 @@ const Cart = () => {
   };
 
   const onSubmit = (data: DeliveryFormData) => {
-    // Send message to each supplier
-    supplierGroups.forEach((group) => {
-      if (group.supplierPhone) {
-        const orderDetails = group.items
-          .map((item) => {
-            const price =
-              item.product.specialOffer && item.product.discountPercentage
-                ? item.product.price -
-                  (item.product.price * item.product.discountPercentage) / 100
-                : item.product.price;
-            return (
-              `━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `📌 *${item.product.name}*\n` +
-              `🆔 رقم المنتج: ${item.product.id}\n` +
-              `🔢 الكمية: ${item.quantity}\n` +
-              `💰 السعر: ${price.toLocaleString()} EGP\n` +
-              `💵 المجموع: ${(price * item.quantity).toLocaleString()} EGP`
-            );
-          })
-          .join("\n");
+    if (!selectedBranch) {
+      toast.error("يرجى اختيار الفرع أولاً");
+      return;
+    }
+    // بناء رسالة الطلب
+    const orderDetails = cart
+      .map((item, idx) => {
+        let sizePrice = 0;
+        let extraPrice = 0;
+        if (item.selectedSize && item.product.sizesWithPrices) {
+          const foundSize = item.product.sizesWithPrices.find(
+            (s) => s.size === item.selectedSize
+          );
+          if (foundSize) sizePrice = Number(foundSize.price || 0);
+        }
+        if (item.selectedExtra && item.product.extras) {
+          const foundExtra = item.product.extras.find(
+            (e) => e.name === item.selectedExtra
+          );
+          if (foundExtra) extraPrice = Number(foundExtra.price || 0);
+        }
+        const basePrice =
+          item.product.specialOffer && item.product.discountPercentage
+            ? item.product.price -
+              (item.product.price * item.product.discountPercentage) / 100
+            : item.product.price;
+        const totalPrice = (basePrice + sizePrice + extraPrice) * item.quantity;
+        return (
+          `━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `📌 *${item.product.name}*\n` +
+          `🆔 رقم المنتج: ${item.product.id}\n` +
+          (item.selectedSize ? `📏 الحجم: ${item.selectedSize}\n` : "") +
+          (item.selectedExtra ? `➕ إضافة: ${item.selectedExtra}\n` : "") +
+          `🔢 الكمية: ${item.quantity}\n` +
+          `💰 السعر: ${(
+            basePrice +
+            sizePrice +
+            extraPrice
+          ).toLocaleString()} EGP\n` +
+          `💵 المجموع: ${totalPrice.toLocaleString()} EGP`
+        );
+      })
+      .join("\n");
 
-        const message =
-          `🛍️ *طلب جديد*\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `👤 *معلومات العميل:*\n` +
-          `${data.fullName ? `الاسم: ${data.fullName}\n` : ""}` +
-          `${data.phoneNumber ? `رقم الهاتف: ${data.phoneNumber}\n` : ""}` +
-          `${data.address ? `العنوان: ${data.address}\n` : ""}` +
-          `${data.city ? `المدينة: ${data.city}\n` : ""}` +
-          `${data.notes ? `\n📝 *ملاحظات:*\n${data.notes}\n` : ""}` +
-          `\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📦 *تفاصيل الطلب:*\n` +
-          `${orderDetails}\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `💰 *المجموع:* ${group.total.toLocaleString()} EGP\n\n` +
-          `⏰ *تاريخ الطلب:* ${new Date().toLocaleString("ar-EG")}\n` +
-          `🏪 *اسم المتجر:* ${group.supplierName}`;
-        const encodedMessage = encodeURIComponent(message);
-        const whatsappUrl = `https://wa.me/${group.supplierPhone}?text=${encodedMessage}`;
-        window.open(whatsappUrl, "_blank");
-      }
-    });
+    const message =
+      `🛍️ *طلب جديد*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `👤 *معلومات العميل:*\n` +
+      `${data.fullName ? `الاسم: ${data.fullName}\n` : ""}` +
+      `${data.phoneNumber ? `رقم الهاتف: ${data.phoneNumber}\n` : ""}` +
+      `${data.address ? `العنوان: ${data.address}\n` : ""}` +
+      `${data.city ? `المدينة: ${data.city}\n` : ""}` +
+      `${data.notes ? `\n📝 *ملاحظات:*\n${data.notes}\n` : ""}` +
+      `\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `📦 *تفاصيل الطلب:*\n` +
+      `${orderDetails}\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `💰 *المجموع:* ${cart
+        .reduce((total, item) => {
+          let sizePrice = 0;
+          let extraPrice = 0;
+          if (item.selectedSize && item.product.sizesWithPrices) {
+            const foundSize = item.product.sizesWithPrices.find(
+              (s) => s.size === item.selectedSize
+            );
+            if (foundSize) sizePrice = Number(foundSize.price || 0);
+          }
+          if (item.selectedExtra && item.product.extras) {
+            const foundExtra = item.product.extras.find(
+              (e) => e.name === item.selectedExtra
+            );
+            if (foundExtra) extraPrice = Number(foundExtra.price || 0);
+          }
+          const basePrice =
+            item.product.specialOffer && item.product.discountPercentage
+              ? item.product.price -
+                (item.product.price * item.product.discountPercentage) / 100
+              : item.product.price;
+          return total + (basePrice + sizePrice + extraPrice) * item.quantity;
+        }, 0)
+        .toLocaleString()} EGP\n\n` +
+      `⏰ *تاريخ الطلب:* ${new Date().toLocaleString("ar-EG")}\n` +
+      `🏪 *اسم الفرع:* ${selectedBranch.name}`;
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${selectedBranch.phone.replace(
+      /^0/,
+      "20"
+    )}?text=${encodedMessage}`;
+    window.open(whatsappUrl, "_blank");
+  };
+
+  const navigate = useNavigate();
+
+  const updateCartItemOptions = (
+    productId: string,
+    selectedSize?: string,
+    selectedExtra?: string
+  ) => {
+    // إزالة العنصر القديم بنفس المنتج والحجم/الإضافة القديمة
+    const item = cart.find((i) => i.product.id === productId);
+    if (!item) return;
+    removeFromCart(productId);
+    // أضف العنصر الجديد بنفس الكمية ولكن بالحجم/الإضافة الجديدة
+    addToCart(item.product, item.quantity, selectedSize, selectedExtra);
   };
 
   return (
@@ -256,232 +348,250 @@ const Cart = () => {
         ) : (
           <div className="grid gap-8 md:grid-cols-5">
             <div className="md:col-span-3 space-y-8">
-              {/* Total Sum Section */}
-              <div className="bg-white rounded-lg border p-4 mb-6">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold">المجموع الكلي</h3>
-                  <span className="text-xl font-bold text-green-700">
-                    {supplierGroups
-                      .reduce((total, group) => total + group.total, 0)
-                      .toLocaleString()}{" "}
-                    EGP
-                  </span>
-                </div>
-              </div>
-
               {supplierGroups.map((group, index) => (
                 <div
                   key={group.supplierName}
                   className="bg-white rounded-lg border shadow-sm overflow-hidden"
                 >
-                  {/* Supplier Header */}
-                  <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4 border-b">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {group.supplierName === DEFAULT_SUPPLIER.name ? (
-                          <div className="bg-primary/0 p-2 rounded-full">
-                            <img
-                              src="/logo1.png"
-                              alt={group.supplierName}
-                              className="h-12 w-12 object-contain"
-                            />
-                          </div>
-                        ) : null}
-                        <div>
-                          <h2 className="text-lg font-bold text-primary">
-                            {group.supplierName}
-                          </h2>
-                          <p className="text-sm text-muted-foreground">
-                            يمكنك التواصل مع البائع عبر الواتساب
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2"
-                        disabled={!isFormValid}
-                        onClick={() => {
-                          const orderDetails = group.items
-                            .map((item) => {
-                              const price =
-                                item.product.specialOffer &&
-                                item.product.discountPercentage
-                                  ? item.product.price -
-                                    (item.product.price *
-                                      item.product.discountPercentage) /
-                                      100
-                                  : item.product.price;
-                              return (
-                                `━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-                                `📌 *${item.product.name}*\n` +
-                                `🆔 رقم المنتج: ${item.product.id}\n` +
-                                `🔢 الكمية: ${item.quantity}\n` +
-                                `💰 السعر: ${price.toLocaleString()} EGP\n` +
-                                `💵 المجموع: ${(
-                                  price * item.quantity
-                                ).toLocaleString()} EGP`
-                              );
-                            })
-                            .join("\n");
-
-                          const message =
-                            `🛍️ *طلب جديد*\n` +
-                            `━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-                            `👤 *معلومات العميل:*\n` +
-                            `${
-                              deliveryInfo.fullName
-                                ? `الاسم: ${deliveryInfo.fullName}\n`
-                                : ""
-                            }` +
-                            `${
-                              deliveryInfo.phoneNumber
-                                ? `رقم الهاتف: ${deliveryInfo.phoneNumber}\n`
-                                : ""
-                            }` +
-                            `${
-                              deliveryInfo.address
-                                ? `العنوان: ${deliveryInfo.address}\n`
-                                : ""
-                            }` +
-                            `${
-                              deliveryInfo.city
-                                ? `المدينة: ${deliveryInfo.city}\n`
-                                : ""
-                            }` +
-                            `${
-                              deliveryInfo.notes
-                                ? `\n📝 *ملاحظات:*\n${deliveryInfo.notes}\n`
-                                : ""
-                            }` +
-                            `\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-                            `📦 *تفاصيل الطلب:*\n` +
-                            `${orderDetails}\n\n` +
-                            `━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-                            `💰 *المجموع:* ${group.total.toLocaleString()} EGP\n\n` +
-                            `⏰ *تاريخ الطلب:* ${new Date().toLocaleString(
-                              "ar-EG"
-                            )}\n` +
-                            `🏪 *اسم المتجر:* ${group.supplierName}`;
-                          const encodedMessage = encodeURIComponent(message);
-                          const whatsappUrl = `https://wa.me/${group.supplierPhone}?text=${encodedMessage}`;
-                          window.open(whatsappUrl, "_blank");
-                        }}
-                      >
-                        <FaWhatsapp className="w-4 h-4" />
-                        {t("cart.completeOrder")}
-                      </Button>
-                    </div>
-                  </div>
-
                   {/* Products List */}
                   <div className="divide-y">
-                    {group.items.map((item) => (
-                      <div
-                        key={item.product.id}
-                        className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
-                      >
-                        <img
-                          src={item.product.images[0]}
-                          alt={item.product.name}
-                          className="h-20 w-20 rounded-md object-cover"
-                        />
-                        <div className="flex-1">
-                          <h3 className="font-medium">{item.product.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {item.product.brand}
-                          </p>
-                          <div className="flex md:flex-row flex-col md:items-center items-start gap-4 mt-2">
-                            <div className="flex items-center gap-0">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  const newQuantity = Math.max(
-                                    0,
-                                    item.quantity - 1
-                                  );
-                                  if (newQuantity === 0) {
-                                    handleDeleteClick(item.product.id);
-                                  } else {
-                                    addToCart(item.product, -1);
-                                  }
-                                }}
-                              >
-                                <Minus className="h-4 w-4" />
-                              </Button>
-                              <span className="w-8 text-center">
-                                {item.quantity}
-                              </span>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => addToCart(item.product, 1)}
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-medium">
-                                {item.product.specialOffer &&
-                                item.product.discountPercentage
-                                  ? formatPrice(
-                                      (item.product.price -
-                                        (item.product.price *
-                                          item.product.discountPercentage) /
-                                          100) *
-                                        item.quantity
-                                    )
-                                  : formatPrice(
-                                      item.product.price * item.quantity
-                                    )}{" "}
-                                EGP
-                              </span>
-                              {item.product.specialOffer &&
-                                item.product.discountPercentage && (
-                                  <span className="text-xs text-red-600">
-                                    -{item.product.discountPercentage}%{" "}
-                                    {t("products.off")}
-                                  </span>
+                    {cart.map((item, idx) => {
+                      // حساب السعر حسب الحجم والإضافة المختارة
+                      let sizePrice = 0;
+                      let extraPrice = 0;
+                      if (item.selectedSize && item.product.sizesWithPrices) {
+                        const foundSize = item.product.sizesWithPrices.find(
+                          (s) => s.size === item.selectedSize
+                        );
+                        if (foundSize) sizePrice = Number(foundSize.price || 0);
+                      }
+                      if (item.selectedExtra && item.product.extras) {
+                        const foundExtra = item.product.extras.find(
+                          (e) => e.name === item.selectedExtra
+                        );
+                        if (foundExtra)
+                          extraPrice = Number(foundExtra.price || 0);
+                      }
+                      const basePrice =
+                        item.product.specialOffer &&
+                        item.product.discountPercentage
+                          ? item.product.price -
+                            (item.product.price *
+                              item.product.discountPercentage) /
+                              100
+                          : item.product.price;
+                      const totalPrice =
+                        (basePrice + sizePrice + extraPrice) * item.quantity;
+                      return (
+                        <div
+                          key={item.product.id + "-" + idx}
+                          className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
+                        >
+                          <img
+                            src={item.product.images[0]}
+                            alt={item.product.name}
+                            className="h-20 w-20 rounded-md object-cover"
+                          />
+                          <div className="flex-1">
+                            <h3 className="font-medium">{item.product.name}</h3>
+                            {/* تفاصيل الحجم والإضافة */}
+                            <div className="flex flex-wrap gap-2 mt-1 text-sm text-muted-foreground">
+                              {item.product.sizesWithPrices &&
+                                item.product.sizesWithPrices.length > 0 && (
+                                  <Select
+                                    value={item.selectedSize || undefined}
+                                    onValueChange={(value) =>
+                                      updateCartItemOptions(
+                                        item.product.id,
+                                        value,
+                                        item.selectedExtra
+                                      )
+                                    }
+                                  >
+                                    <SelectTrigger className="w-auto min-w-[100px]">
+                                      <SelectValue placeholder="اختر الحجم" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {item.product.sizesWithPrices.map(
+                                        (sizeObj, i) => (
+                                          <SelectItem
+                                            key={sizeObj.size + i}
+                                            value={sizeObj.size}
+                                          >
+                                            {sizeObj.size}{" "}
+                                            {sizeObj.price &&
+                                            Number(sizeObj.price) > 0
+                                              ? `(+${sizeObj.price} ج.م)`
+                                              : ""}
+                                          </SelectItem>
+                                        )
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              {item.product.extras &&
+                                item.product.extras.length > 0 && (
+                                  <Select
+                                    value={item.selectedExtra || undefined}
+                                    onValueChange={(value) =>
+                                      updateCartItemOptions(
+                                        item.product.id,
+                                        item.selectedSize,
+                                        value || undefined
+                                      )
+                                    }
+                                  >
+                                    <SelectTrigger className="w-auto min-w-[100px]">
+                                      <SelectValue placeholder="اختر الإضافة" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value={undefined}>
+                                        بدون إضافة
+                                      </SelectItem>
+                                      {item.product.extras.map(
+                                        (extraObj, i) => (
+                                          <SelectItem
+                                            key={extraObj.name + i}
+                                            value={extraObj.name}
+                                          >
+                                            {extraObj.name}{" "}
+                                            {extraObj.price &&
+                                            Number(extraObj.price) > 0
+                                              ? `(+${extraObj.price} ج.م)`
+                                              : ""}
+                                          </SelectItem>
+                                        )
+                                      )}
+                                    </SelectContent>
+                                  </Select>
                                 )}
                             </div>
+                            <div className="flex md:flex-row flex-col md:items-center items-start gap-4 mt-2">
+                              <div className="flex items-center gap-0">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() =>
+                                    addToCart(
+                                      item.product,
+                                      -1,
+                                      item.selectedSize,
+                                      item.selectedExtra
+                                    )
+                                  }
+                                  className="rounded-full"
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </Button>
+                                <span className="px-3 font-bold text-lg">
+                                  {item.quantity}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() =>
+                                    addToCart(
+                                      item.product,
+                                      1,
+                                      item.selectedSize,
+                                      item.selectedExtra
+                                    )
+                                  }
+                                  className="rounded-full"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              <span className="text-green-700 font-bold">
+                                {formatPrice(
+                                  basePrice + sizePrice + extraPrice
+                                )}{" "}
+                                جنيه
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() =>
+                                navigate(`/products/${item.product.id}`)
+                              }
+                              className="rounded-full mb-2"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              onClick={() => handleDeleteClick(item.product.id)}
+                              className="rounded-full"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex flex-col gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedProduct(item.product);
-                              setModalOpen(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleDeleteClick(item.product.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
-                  {/* Supplier Total */}
-                  <div className="bg-gray-50 p-4 border-t">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">
-                        مجموع الطلب من هذا البائع
-                      </span>
-                      <span className="text-lg font-semibold text-primary">
-                        {group.total.toLocaleString()} EGP
-                      </span>
-                    </div>
+                  {/* Total Orders Section */}
+                  <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-6 border-t flex flex-col items-center gap-2 rounded-b-lg mt-2">
+                    <span className="text-xl font-bold text-primary flex items-center gap-2">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-7 h-7 text-green-600"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 9V7a5 5 0 00-10 0v2a2 2 0 00-2 2v7a2 2 0 002 2h12a2 2 0 002-2v-7a2 2 0 00-2-2z"
+                        />
+                      </svg>
+                      مجموع طلباتك
+                    </span>
+                    <span className="text-2xl font-extrabold text-green-700 tracking-wider">
+                      {cart
+                        .reduce((total, item) => {
+                          let sizePrice = 0;
+                          let extraPrice = 0;
+                          if (
+                            item.selectedSize &&
+                            item.product.sizesWithPrices
+                          ) {
+                            const foundSize = item.product.sizesWithPrices.find(
+                              (s) => s.size === item.selectedSize
+                            );
+                            if (foundSize)
+                              sizePrice = Number(foundSize.price || 0);
+                          }
+                          if (item.selectedExtra && item.product.extras) {
+                            const foundExtra = item.product.extras.find(
+                              (e) => e.name === item.selectedExtra
+                            );
+                            if (foundExtra)
+                              extraPrice = Number(foundExtra.price || 0);
+                          }
+                          const basePrice =
+                            item.product.specialOffer &&
+                            item.product.discountPercentage
+                              ? item.product.price -
+                                (item.product.price *
+                                  item.product.discountPercentage) /
+                                  100
+                              : item.product.price;
+                          return (
+                            total +
+                            (basePrice + sizePrice + extraPrice) * item.quantity
+                          );
+                        }, 0)
+                        .toLocaleString()}{" "}
+                      جنيه
+                    </span>
                   </div>
                 </div>
               ))}
@@ -506,7 +616,10 @@ const Cart = () => {
                 <h2 className="text-xl font-semibold mb-4">
                   {t("cart.deliveryInfo")}
                 </h2>
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <form
+                  onSubmit={handleSubmit(onSubmit)}
+                  className="space-y-4 bg-white rounded-lg border p-6 mb-8"
+                >
                   <div>
                     <label
                       htmlFor="fullName"
@@ -594,7 +707,44 @@ const Cart = () => {
                     <Textarea id="notes" {...register("notes")} />
                   </div>
 
+                  <div>
+                    <label className="block mb-1 font-semibold text-gray-700">
+                      اختر الفرع الذي سيتم إرسال الطلب إليه *
+                    </label>
+                    <Select
+                      value={selectedBranch?.name || ""}
+                      onValueChange={(value) => {
+                        const branch = branches.find((b) => b.name === value);
+                        setSelectedBranch(branch || null);
+                      }}
+                      required
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="اختر فرع التوصيل" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((branch, idx) => (
+                          <SelectItem
+                            key={branch.name + "-" + idx}
+                            value={branch.name}
+                          >
+                            {branch.name} - {branch.phone}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="pt-4 border-t"></div>
+
+                  <Button
+                    type="submit"
+                    className="w-full flex gap-2 items-center"
+                    disabled={!isFormValid || !selectedBranch}
+                  >
+                    <FaWhatsapp className="w-4 h-4" />
+                    إرسال الطلب للفرع المختار
+                  </Button>
                 </form>
               </div>
             </div>

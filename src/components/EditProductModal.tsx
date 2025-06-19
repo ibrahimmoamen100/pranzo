@@ -82,6 +82,14 @@ export function EditProductModal({
   const [showCustomSubcategory, setShowCustomSubcategory] = useState(false);
   const [discountPrice, setDiscountPrice] = useState("");
   const [showWholesaleInfo, setShowWholesaleInfo] = useState(false);
+  const [sizesWithPrices, setSizesWithPrices] = useState<
+    { size: string; price: string }[]
+  >([]);
+  const [newSize, setNewSize] = useState("");
+  const [newSizePrice, setNewSizePrice] = useState("");
+  const [extras, setExtras] = useState<{ name: string; price: string }[]>([]);
+  const [newExtraName, setNewExtraName] = useState("");
+  const [newExtraPrice, setNewExtraPrice] = useState("");
 
   // Get unique brands and categories from existing products
   const getUniqueBrands = () => {
@@ -134,6 +142,22 @@ export function EditProductModal({
       setShowCustomCategory(false);
       setShowCustomSubcategory(false);
       setShowWholesaleInfo(!!product.wholesaleInfo);
+      setSizesWithPrices(
+        (product.sizesWithPrices || []).map((item) => ({
+          size: item.size || "",
+          price: item.price || "",
+        }))
+      );
+      setExtras(
+        (product.extras || []).map((item) => ({
+          name: item.name || "",
+          price: item.price || "",
+        }))
+      );
+      setNewSize("");
+      setNewSizePrice("");
+      setNewExtraName("");
+      setNewExtraPrice("");
 
       if (product.specialOffer && product.discountPercentage) {
         const originalPrice = product.price;
@@ -158,6 +182,12 @@ export function EditProductModal({
       setShowCustomSubcategory(false);
       setShowWholesaleInfo(false);
       setDiscountPrice("");
+      setSizesWithPrices([]);
+      setExtras([]);
+      setNewSize("");
+      setNewSizePrice("");
+      setNewExtraName("");
+      setNewExtraPrice("");
     }
   }, [product]);
 
@@ -223,6 +253,50 @@ export function EditProductModal({
     }
   };
 
+  // Add new size with price
+  const handleAddSizeWithPrice = () => {
+    if (newSize && newSizePrice) {
+      setSizesWithPrices([
+        ...sizesWithPrices,
+        { size: newSize, price: newSizePrice },
+      ]);
+      setNewSize("");
+      setNewSizePrice("");
+    }
+  };
+
+  // Remove size with price
+  const handleRemoveSizeWithPrice = (index: number) => {
+    setSizesWithPrices(sizesWithPrices.filter((_, i) => i !== index));
+  };
+
+  // Edit size or price
+  const handleEditSizeWithPrice = (
+    index: number,
+    field: "size" | "price",
+    value: string
+  ) => {
+    setSizesWithPrices(
+      sizesWithPrices.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      )
+    );
+  };
+
+  // Add new extra
+  const handleAddExtra = () => {
+    if (newExtraName && newExtraPrice) {
+      setExtras([...extras, { name: newExtraName, price: newExtraPrice }]);
+      setNewExtraName("");
+      setNewExtraPrice("");
+    }
+  };
+
+  // Remove extra
+  const handleRemoveExtra = (index: number) => {
+    setExtras(extras.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData) return;
@@ -236,13 +310,12 @@ export function EditProductModal({
       ? customSubcategory
       : formData.subcategory;
 
-    if (
-      !formData.name ||
-      !formData.price ||
-      !finalCategory ||
-      !finalSubcategory
-    ) {
+    if (!formData.name || !finalCategory || !finalSubcategory) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+    if (sizesWithPrices.length === 0) {
+      toast.error("Please add at least one size with price");
       return;
     }
 
@@ -266,6 +339,8 @@ export function EditProductModal({
         subcategory: finalSubcategory,
         color: colors.length > 0 ? colors.join(",") : "",
         size: sizes.length > 0 ? sizes.join(",") : "",
+        sizesWithPrices,
+        extras,
         discountPercentage: formData.specialOffer
           ? Number(formData.discountPercentage)
           : undefined,
@@ -300,7 +375,7 @@ export function EditProductModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="text-sm font-medium">Name *</label>
+              <label className="text-sm font-medium">الاسم *</label>
               <Input
                 required
                 value={formData.name}
@@ -310,61 +385,7 @@ export function EditProductModal({
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Brand</label>
-              {!showCustomBrand ? (
-                <div className="space-y-2">
-                  <Select
-                    value={formData.brand}
-                    onValueChange={(value) => {
-                      if (value === "add-new") {
-                        setShowCustomBrand(true);
-                        setFormData({ ...formData, brand: "" });
-                      } else {
-                        setFormData({ ...formData, brand: value });
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="shrink-0">
-                      <SelectValue placeholder="Select a brand" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4}>
-                      {uniqueBrands.map((brand) => (
-                        <SelectItem key={brand} value={brand}>
-                          {brand}
-                        </SelectItem>
-                      ))}
-                      <SelectItem
-                        value="add-new"
-                        className="text-blue-600 font-medium"
-                      >
-                        + Add New Brand
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Input
-                    value={customBrand}
-                    onChange={(e) => setCustomBrand(e.target.value)}
-                    placeholder="Enter new brand name"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowCustomBrand(false);
-                      setCustomBrand("");
-                    }}
-                  >
-                    Back to Selection
-                  </Button>
-                </div>
-              )}
-            </div>
-            <div>
-              <label className="text-sm font-medium">Price *</label>
+              <label className="text-sm font-medium">السعر *</label>
               <Input
                 required
                 type="number"
@@ -396,7 +417,7 @@ export function EditProductModal({
               )}
             </div>
             <div>
-              <label className="text-sm font-medium">Category *</label>
+              <label className="text-sm font-medium">التصنيف *</label>
               {!showCustomCategory ? (
                 <div className="space-y-2">
                   <Select
@@ -411,11 +432,11 @@ export function EditProductModal({
                     }}
                   >
                     <SelectTrigger className="shrink-0">
-                      <SelectValue placeholder="Select a category" />
+                      <SelectValue placeholder="اختر تصنيفًا" />
                     </SelectTrigger>
                     <SelectContent position="popper" sideOffset={4}>
-                      {uniqueCategories.map((category) => (
-                        <SelectItem key={category} value={category}>
+                      {uniqueCategories.map((category, idx) => (
+                        <SelectItem key={category + "-" + idx} value={category}>
                           {category}
                         </SelectItem>
                       ))}
@@ -423,7 +444,7 @@ export function EditProductModal({
                         value="add-new"
                         className="text-blue-600 font-medium"
                       >
-                        + Add New Category
+                        + إضافة تصنيف جديد
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -434,7 +455,7 @@ export function EditProductModal({
                     required
                     value={customCategory}
                     onChange={(e) => setCustomCategory(e.target.value)}
-                    placeholder="Enter new category name"
+                    placeholder="أدخل اسم تصنيف جديد"
                   />
                   <Button
                     type="button"
@@ -445,13 +466,13 @@ export function EditProductModal({
                       setCustomCategory("");
                     }}
                   >
-                    Back to Selection
+                    العودة إلى الاختيار
                   </Button>
                 </div>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium">Subcategory *</label>
+              <label className="text-sm font-medium">التصنيف الفرعي *</label>
               {!showCustomSubcategory ? (
                 <div className="space-y-2">
                   <Select
@@ -466,11 +487,14 @@ export function EditProductModal({
                     }}
                   >
                     <SelectTrigger className="shrink-0">
-                      <SelectValue placeholder="Select a subcategory" />
+                      <SelectValue placeholder="اختر تصنيفًا فرعيًا" />
                     </SelectTrigger>
                     <SelectContent position="popper" sideOffset={4}>
-                      {uniqueSubcategories.map((subcategory) => (
-                        <SelectItem key={subcategory} value={subcategory}>
+                      {uniqueSubcategories.map((subcategory, idx) => (
+                        <SelectItem
+                          key={subcategory + "-" + idx}
+                          value={subcategory}
+                        >
                           {subcategory}
                         </SelectItem>
                       ))}
@@ -478,7 +502,7 @@ export function EditProductModal({
                         value="add-new"
                         className="text-blue-600 font-medium"
                       >
-                        + Add New Subcategory
+                        + إضافة تصنيف فرعي جديد
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -489,7 +513,7 @@ export function EditProductModal({
                     required
                     value={customSubcategory}
                     onChange={(e) => setCustomSubcategory(e.target.value)}
-                    placeholder="Enter new subcategory name"
+                    placeholder="أدخل اسم تصنيف فرعي جديد"
                   />
                   <Button
                     type="button"
@@ -500,10 +524,205 @@ export function EditProductModal({
                       setCustomSubcategory("");
                     }}
                   >
-                    Back to Selection
+                    العودة إلى الاختيار
                   </Button>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Sizes with Prices Section */}
+          <div className="mb-4">
+            <label className="text-sm font-medium block mb-2">
+              الأحجام والأسعار
+            </label>
+            <div className="flex gap-2 mb-2">
+              <Input
+                placeholder="الحجم (مثال: صغير)"
+                value={newSize}
+                onChange={(e) => setNewSize(e.target.value)}
+                className="w-1/2"
+              />
+              <Input
+                placeholder="السعر لهذا الحجم"
+                type="number"
+                min="0"
+                value={newSizePrice}
+                onChange={(e) => setNewSizePrice(e.target.value)}
+                className="w-1/2"
+              />
+              <Button type="button" onClick={handleAddSizeWithPrice}>
+                إضافة
+              </Button>
+            </div>
+            {sizesWithPrices.length > 0 && (
+              <div className="space-y-2">
+                {sizesWithPrices.map((item, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <Input
+                      value={item.size}
+                      onChange={(e) =>
+                        handleEditSizeWithPrice(idx, "size", e.target.value)
+                      }
+                      className="w-1/3"
+                    />
+                    <Input
+                      value={item.price}
+                      type="number"
+                      min="0"
+                      onChange={(e) =>
+                        handleEditSizeWithPrice(idx, "price", e.target.value)
+                      }
+                      className="w-1/3"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleRemoveSizeWithPrice(idx)}
+                    >
+                      حذف
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Extras Section */}
+          <div className="mb-4">
+            <label className="text-sm font-medium block mb-2">الإضافات</label>
+            <div className="flex gap-2 mb-2">
+              <Input
+                placeholder="اسم الإضافة (مثال: جبنة)"
+                value={newExtraName}
+                onChange={(e) => setNewExtraName(e.target.value)}
+                className="w-1/2"
+              />
+              <Input
+                placeholder="سعر الإضافة"
+                type="number"
+                min="0"
+                value={newExtraPrice}
+                onChange={(e) => setNewExtraPrice(e.target.value)}
+                className="w-1/2"
+              />
+              <Button type="button" onClick={handleAddExtra}>
+                إضافة
+              </Button>
+            </div>
+            {extras.length > 0 && (
+              <div className="space-y-2">
+                {extras.map((item, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <span className="px-2 py-1 bg-gray-100 rounded">
+                      {item.name}
+                    </span>
+                    <span className="px-2 py-1 bg-gray-100 rounded">
+                      {item.price} جنيه
+                    </span>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleRemoveExtra(idx)}
+                    >
+                      حذف
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">الصور</label>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  type="url"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="Enter image URL"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={addImageUrl}
+                  variant="outline"
+                  className="flex gap-1 items-center"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Add
+                </Button>
+              </div>
+              <div className="mt-2 grid grid-cols-4 gap-2">
+                {formData.images.map((url, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={url}
+                      alt={`Product ${index + 1}`}
+                      className="aspect-square rounded-lg object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(url)}
+                      className="absolute right-1 top-1 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="space-y-2">
+              <Label htmlFor="description">الوصف</Label>
+              <div
+                className="prose prose-sm max-w-none dark:prose-invert
+                prose-headings:font-semibold
+                prose-p:leading-relaxed
+                prose-ul:list-disc prose-ul:pl-4
+                prose-ol:list-decimal prose-ol:pl-4
+                prose-li:my-1
+                prose-strong:text-foreground
+                prose-em:text-foreground/80
+                prose-ul:marker:text-foreground
+                prose-ol:marker:text-foreground"
+              >
+                <ReactQuill
+                  theme="snow"
+                  value={formData.description}
+                  onChange={(value) =>
+                    setFormData({ ...formData, description: value })
+                  }
+                  modules={{
+                    toolbar: [
+                      [{ header: [1, 2, 3, false] }],
+                      ["bold", "italic", "underline", "strike"],
+                      [{ list: "ordered" }, { list: "bullet" }],
+                      ["clean"],
+                    ],
+                  }}
+                  className="min-h-[200px] resize-y rtl-quill"
+                  style={{
+                    height: "auto",
+                    minHeight: "200px",
+                    maxHeight: "1000px",
+                  }}
+                  formats={[
+                    "header",
+                    "bold",
+                    "italic",
+                    "underline",
+                    "strike",
+                    "list",
+                    "bullet",
+                  ]}
+                />
+              </div>
             </div>
           </div>
 
@@ -582,187 +801,6 @@ export function EditProductModal({
                 </div>
               </div>
             )}
-          </div>
-
-          {/* color */}
-          {/* <div>
-            <label className="text-sm font-medium">Colors *</label>
-            <div className="space-y-2">
-              <Select onValueChange={addColor}>
-                <SelectTrigger className="w-full shrink-0">
-                  <SelectValue placeholder="Select a color" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  {commonColors.map((color) => (
-                    <SelectItem key={color.value} value={color.value}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-4 w-4 rounded-full border"
-                          style={{ backgroundColor: color.value }}
-                        ></div>
-                        {color.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {colors.map((color, index) => {
-                  const colorInfo = commonColors.find(
-                    (c) => c.value === color
-                  ) || {
-                    name: color,
-                    value: color,
-                  };
-                  return (
-                    <div
-                      key={index}
-                      className="relative inline-flex items-center"
-                    >
-                      <div
-                        className="h-8 w-8 rounded-full border"
-                        style={{ backgroundColor: color }}
-                      />
-                      <div className="ml-2">{colorInfo.name}</div>
-                      <button
-                        type="button"
-                        onClick={() => removeColor(color)}
-                        className="absolute -right-1 -top-1 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div> */}
-
-          {/* sizes  */}
-          {/* <div>
-            <label className="text-sm font-medium">Sizes *</label>
-            <div className="space-y-2">
-              <Select onValueChange={addSize}>
-                <SelectTrigger className="w-full shrink-0">
-                  <SelectValue placeholder="Select a size" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  {commonSizes.map((size) => (
-                    <SelectItem key={size} value={size}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {sizes.map((size, index) => (
-                  <div
-                    key={index}
-                    className="relative inline-flex items-center rounded-md border bg-background px-3 py-1"
-                  >
-                    {size}
-                    <button
-                      type="button"
-                      onClick={() => removeSize(size)}
-                      className="ml-2 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div> */}
-
-          <div>
-            <label className="text-sm font-medium">Images</label>
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="Enter image URL"
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  onClick={addImageUrl}
-                  variant="outline"
-                  className="flex gap-1 items-center"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  Add
-                </Button>
-              </div>
-              <div className="mt-2 grid grid-cols-4 gap-2">
-                {formData.images.map((url, index) => (
-                  <div key={index} className="relative">
-                    <img
-                      src={url}
-                      alt={`Product ${index + 1}`}
-                      className="aspect-square rounded-lg object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(url)}
-                      className="absolute right-1 top-1 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div className="space-y-2">
-              <Label htmlFor="description">{t("products.description")}</Label>
-              <div
-                className="prose prose-sm max-w-none dark:prose-invert
-                prose-headings:font-semibold
-                prose-p:leading-relaxed
-                prose-ul:list-disc prose-ul:pl-4
-                prose-ol:list-decimal prose-ol:pl-4
-                prose-li:my-1
-                prose-strong:text-foreground
-                prose-em:text-foreground/80
-                prose-ul:marker:text-foreground
-                prose-ol:marker:text-foreground"
-              >
-                <ReactQuill
-                  theme="snow"
-                  value={formData.description}
-                  onChange={(value) =>
-                    setFormData({ ...formData, description: value })
-                  }
-                  modules={{
-                    toolbar: [
-                      [{ header: [1, 2, 3, false] }],
-                      ["bold", "italic", "underline", "strike"],
-                      [{ list: "ordered" }, { list: "bullet" }],
-                      ["clean"],
-                    ],
-                  }}
-                  className="min-h-[200px] resize-y rtl-quill"
-                  style={{
-                    height: "auto",
-                    minHeight: "200px",
-                    maxHeight: "1000px",
-                  }}
-                  formats={[
-                    "header",
-                    "bold",
-                    "italic",
-                    "underline",
-                    "strike",
-                    "list",
-                    "bullet",
-                  ]}
-                />
-              </div>
-            </div>
           </div>
 
           {/* Archive Status */}

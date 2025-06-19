@@ -156,8 +156,8 @@ export function AdminFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">جميع التصنيفات</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
+              {categories.map((category, idx) => (
+                <SelectItem key={category + "-" + idx} value={category}>
                   {category}
                 </SelectItem>
               ))}
@@ -185,8 +185,8 @@ export function AdminFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">جميع الموردين</SelectItem>
-              {suppliers.map((supplier) => (
-                <SelectItem key={supplier} value={supplier}>
+              {suppliers.map((supplier, idx) => (
+                <SelectItem key={supplier + "-" + idx} value={supplier}>
                   {supplier}
                 </SelectItem>
               ))}

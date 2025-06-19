@@ -102,15 +102,6 @@ export default function Products() {
         return false;
       }
 
-      // Supplier filter
-      if (filters.supplier) {
-        const productSupplier =
-          product.wholesaleInfo?.supplierName || DEFAULT_SUPPLIER.name;
-        if (productSupplier !== filters.supplier) {
-          return false;
-        }
-      }
-
       // Color filter
       if (filters.color) {
         const productColors =

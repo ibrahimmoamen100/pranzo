@@ -3,12 +3,24 @@ import { Product, Filter } from "@/types/product";
 import initialData from "../data/store.json";
 import { persist } from "zustand/middleware";
 
+interface CartItem {
+  product: Product;
+  quantity: number;
+  selectedSize?: string;
+  selectedExtra?: string;
+}
+
 interface StoreState {
   products: Product[];
-  cart: { product: Product; quantity: number }[];
+  cart: CartItem[];
   filters: Filter;
   setProducts: (products: Product[]) => void;
-  addToCart: (product: Product, quantity?: number) => void;
+  addToCart: (
+    product: Product,
+    quantity?: number,
+    selectedSize?: string,
+    selectedExtra?: string
+  ) => void;
   removeFromCart: (productId: string) => void;
   updateCartItemQuantity: (productId: string, quantity: number) => void;
   setFilters: (filters: Filter) => void;
@@ -17,6 +29,11 @@ interface StoreState {
   updateProduct: (product: Product) => void;
   deleteProduct: (productId: string) => void;
   checkExpiredProducts: () => void;
+  updateCartItemOptions: (
+    productId: string,
+    selectedSize?: string,
+    selectedExtra?: string
+  ) => void;
 }
 
 export const useStore = create<StoreState>()(
@@ -37,24 +54,32 @@ export const useStore = create<StoreState>()(
         sortBy: undefined,
       },
       setProducts: (products) => set({ products }),
-      addToCart: (product, quantity = 1) =>
+      addToCart: (product, quantity = 1, selectedSize, selectedExtra) =>
         set((state) => {
           const existingItem = state.cart.find(
-            (item) => item.product.id === product.id
+            (cartItem) =>
+              cartItem.product.id === product.id &&
+              cartItem.selectedSize === selectedSize &&
+              cartItem.selectedExtra === selectedExtra
           );
 
           if (existingItem) {
             return {
-              cart: state.cart.map((item) =>
-                item.product.id === product.id
-                  ? { ...item, quantity: item.quantity + quantity }
-                  : item
+              cart: state.cart.map((cartItem) =>
+                cartItem.product.id === product.id &&
+                cartItem.selectedSize === selectedSize &&
+                cartItem.selectedExtra === selectedExtra
+                  ? { ...cartItem, quantity: cartItem.quantity + quantity }
+                  : cartItem
               ),
             };
           }
 
           return {
-            cart: [...state.cart, { product, quantity }],
+            cart: [
+              ...state.cart,
+              { product, quantity, selectedSize, selectedExtra },
+            ],
           };
         }),
       removeFromCart: (productId) =>
@@ -109,6 +134,27 @@ export const useStore = create<StoreState>()(
         });
         set({ products: updatedProducts });
       },
+      updateCartItemOptions: (
+        productId: string,
+        selectedSize?: string,
+        selectedExtra?: string
+      ) =>
+        set((state) => {
+          const item = state.cart.find((i) => i.product.id === productId);
+          if (!item) return {};
+          if (
+            item.selectedSize === selectedSize &&
+            item.selectedExtra === selectedExtra
+          )
+            return {};
+          const newCart = state.cart.filter((i) => i.product.id !== productId);
+          newCart.push({
+            ...item,
+            selectedSize,
+            selectedExtra,
+          });
+          return { cart: newCart };
+        }),
     }),
     {
       name: "shop-storage",

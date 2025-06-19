@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { Topbar } from "@/components/Topbar";
@@ -26,69 +26,6 @@ import { FaWhatsapp } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/store/useStore";
 import { Helmet } from "react-helmet-async";
-
-const branches = [
-  {
-    id: 1,
-    name: "متجر المرج الرئيسي",
-    phone: "01024911062",
-    whatsapp: "01024911062",
-    workingHours: "من 9 صباحاً حتى 10 مساءً",
-    address: "شارع مؤسسة الزكاة، بجوار مسجد الرحمن، المرج، القاهرة",
-    icon: Store,
-    description: "المتجر الرئيسي لجميع المنتجات بأسعار تنافسية",
-  },
-  {
-    id: 2,
-    name: "محل أبو أحمد للملابس",
-    phone: "01234567890",
-    whatsapp: "01234567890",
-    workingHours: "من 10 صباحاً حتى 11 مساءً",
-    address: "شارع 9، بجوار مدرسة المرج الثانوية، المرج، القاهرة",
-    icon: Shirt,
-    description: "أحدث صيحات الموضة بأسعار مناسبة للجميع",
-  },
-  {
-    id: 3,
-    name: "بقالة السعادة",
-    phone: "01123456789",
-    whatsapp: "01123456789",
-    workingHours: "24 ساعة",
-    address: "شارع النور، بجوار صيدلية الحياة، المرج، القاهرة",
-    icon: ShoppingBag,
-    description: "كل احتياجاتك المنزلية متوفرة على مدار الساعة",
-  },
-  {
-    id: 4,
-    name: "محل الأمل للأحذية",
-    phone: "01098765432",
-    whatsapp: "01098765432",
-    workingHours: "من 9 صباحاً حتى 10 مساءً",
-    address: "شارع السلام، بجوار بنك مصر، المرج، القاهرة",
-    icon: Footprints,
-    description: "أحذية عصرية بجودة عالية وأسعار منافسة",
-  },
-  {
-    id: 5,
-    name: "مكتبة المعرفة",
-    phone: "01234567891",
-    whatsapp: "01234567891",
-    workingHours: "من 8 صباحاً حتى 9 مساءً",
-    address: "شارع الثقافة، بجوار مدرسة المعرفة، المرج، القاهرة",
-    icon: Book,
-    description: "كتب ومستلزمات دراسية بأسعار مناسبة",
-  },
-  {
-    id: 6,
-    name: "محل الأمانة للأجهزة الكهربائية",
-    phone: "01123456790",
-    whatsapp: "01123456790",
-    workingHours: "من 10 صباحاً حتى 11 مساءً",
-    address: "شارع التكنولوجيا، بجوار محطة مترو المرج، المرج، القاهرة",
-    icon: Laptop,
-    description: "أحدث الأجهزة الكهربائية بضمان شامل",
-  },
-];
 
 const partners = [
   {
@@ -120,8 +57,43 @@ const partners = [
   },
 ];
 
+// دالة لتحويل الوقت من 24 إلى 12 ساعة مع AM/PM
+function formatTime12Hour(time: string) {
+  if (!time) return "";
+  const [hourStr, minuteStr] = time.split(":");
+  let hour = parseInt(hourStr, 10);
+  const minute = minuteStr || "00";
+  const ampm = hour >= 12 ? "م" : "ص";
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${minute} ${ampm}`;
+}
+
 export default function Locations() {
   const products = useStore((state) => state.products);
+
+  // حالة لتخزين الفروع الحقيقية
+  const [branches, setBranches] = useState<any[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(true);
+  const [branchesError, setBranchesError] = useState("");
+
+  // جلب الفروع من backend
+  useEffect(() => {
+    setLoadingBranches(true);
+    fetch("http://localhost:3001/api/store")
+      .then((res) => {
+        if (!res.ok) throw new Error("فشل في جلب الفروع");
+        return res.json();
+      })
+      .then((data) => {
+        setBranches(Array.isArray(data.branches) ? data.branches : []);
+        setLoadingBranches(false);
+      })
+      .catch((err) => {
+        setBranchesError("تعذر تحميل الفروع. حاول لاحقاً.");
+        setLoadingBranches(false);
+      });
+  }, []);
 
   // Get unique suppliers with their information
   const suppliers = Array.from(
@@ -178,30 +150,82 @@ export default function Locations() {
           </div>
         </div>
 
-        {/* Suppliers Section */}
-        <div className="container py-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {suppliers.map((supplier, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    {supplier.name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5 text-muted-foreground" />
-                    <span>{supplier.location}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-muted-foreground" />
-                    <span>من 10 صباحاً حتى 2 صباحاً</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        {/* Branches Section */}
+        <div className="container py-10">
+          <h2 className="text-3xl font-bold mb-8 text-primary text-center flex items-center justify-center gap-2">
+            <Store className="w-7 h-7 text-primary" /> فروعنا
+          </h2>
+          {loadingBranches ? (
+            <div className="text-center text-lg text-gray-500 py-10">
+              جاري تحميل الفروع...
+            </div>
+          ) : branchesError ? (
+            <div className="text-center text-red-500 py-10">
+              {branchesError}
+            </div>
+          ) : branches.length === 0 ? (
+            <div className="text-center text-gray-500 py-10">
+              لا يوجد فروع مضافة حالياً.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {branches.map((branch, idx) => (
+                <Card
+                  key={branch.id || idx}
+                  className="rounded-2xl shadow-md border border-primary/20 hover:shadow-xl transition-all bg-white"
+                >
+                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                    <div className="bg-primary/10 p-3 rounded-full">
+                      <Store className="w-8 h-8 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl font-bold text-primary mb-1">
+                        {branch.name}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {branch.description}
+                      </p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 pt-0">
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <MapPin className="w-5 h-5 text-primary" />
+                      <span>{branch.address}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Phone className="w-5 h-5 text-primary" />
+                      <span>{branch.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Clock className="w-5 h-5 text-primary" />
+                      {branch.openingTime || branch.closingTime ? (
+                        <span>
+                          {branch.openingTime && branch.closingTime
+                            ? `من ${formatTime12Hour(
+                                branch.openingTime
+                              )} حتى ${formatTime12Hour(branch.closingTime)}`
+                            : branch.openingTime
+                            ? `يفتح: ${formatTime12Hour(branch.openingTime)}`
+                            : branch.closingTime
+                            ? `يغلق: ${formatTime12Hour(branch.closingTime)}`
+                            : null}
+                        </span>
+                      ) : (
+                        <span>{branch.workingHours}</span>
+                      )}
+                    </div>
+                    <Button
+                      variant="default"
+                      className="w-full flex gap-2 items-center mt-4 bg-[#25D366] hover:bg-[#1ebe57] text-white font-bold text-lg"
+                      onClick={() => handleWhatsApp(branch.whatsapp)}
+                    >
+                      <FaWhatsapp className="w-5 h-5" /> تواصل عبر واتساب
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </main>
 

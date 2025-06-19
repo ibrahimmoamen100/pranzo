@@ -84,6 +84,8 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
       minimumOrderQuantity: 1,
       notes: "",
     },
+    sizesWithPrices: [] as { size: string; price: string }[],
+    extras: [] as { name: string; price: string }[],
   });
   const [colors, setColors] = useState<string[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
@@ -94,6 +96,10 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
   const [showCustomCategory, setShowCustomCategory] = useState(false);
   const [discountPrice, setDiscountPrice] = useState("");
   const [showWholesaleInfo, setShowWholesaleInfo] = useState(false);
+  const [newSize, setNewSize] = useState("");
+  const [newSizePrice, setNewSizePrice] = useState("");
+  const [newExtraName, setNewExtraName] = useState("");
+  const [newExtraPrice, setNewExtraPrice] = useState("");
 
   // Get unique subcategories from existing products
   const getUniqueSubcategories = (category: string) => {
@@ -166,6 +172,52 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
     }
   };
 
+  // Add new size with price
+  const handleAddSizeWithPrice = () => {
+    if (newSize && newSizePrice) {
+      setFormData({
+        ...formData,
+        sizesWithPrices: [
+          ...formData.sizesWithPrices,
+          { size: newSize, price: newSizePrice },
+        ],
+      });
+      setNewSize("");
+      setNewSizePrice("");
+    }
+  };
+
+  // Remove size with price
+  const handleRemoveSizeWithPrice = (index: number) => {
+    setFormData({
+      ...formData,
+      sizesWithPrices: formData.sizesWithPrices.filter((_, i) => i !== index),
+    });
+  };
+
+  // Add new extra
+  const handleAddExtra = () => {
+    if (newExtraName && newExtraPrice) {
+      setFormData({
+        ...formData,
+        extras: [
+          ...formData.extras,
+          { name: newExtraName, price: newExtraPrice },
+        ],
+      });
+      setNewExtraName("");
+      setNewExtraPrice("");
+    }
+  };
+
+  // Remove extra
+  const handleRemoveExtra = (index: number) => {
+    setFormData({
+      ...formData,
+      extras: formData.extras.filter((_, i) => i !== index),
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -177,13 +229,13 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
       ? formData.category
       : formData.category;
 
-    if (
-      !formData.name ||
-      !formData.price ||
-      !finalCategory ||
-      !finalSubcategory
-    ) {
+    if (!formData.name || !finalCategory || !finalSubcategory) {
       toast.error("الرجاء تعبئة جميع الحقول المطلوبة");
+      return;
+    }
+
+    if (formData.sizesWithPrices.length === 0) {
+      toast.error("يرجى إضافة حجم واحد على الأقل مع السعر");
       return;
     }
 
@@ -204,9 +256,10 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
         ...formData,
         subcategory: finalSubcategory,
         category: finalCategory,
-        price: Number(formData.price),
+        price: formData.price ? Number(formData.price) : undefined,
         color: colors.length > 0 ? colors.join(",") : "",
         size: sizes.length > 0 ? sizes.join(",") : "",
+        sizesWithPrices: formData.sizesWithPrices,
         discountPercentage: formData.specialOffer
           ? Number(formData.discountPercentage)
           : undefined,
@@ -218,6 +271,7 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
         createdAt: new Date().toISOString(),
         expirationDate: formData.expirationDate,
         wholesaleInfo: showWholesaleInfo ? formData.wholesaleInfo : undefined,
+        extras: formData.extras,
       };
 
       // Save via API
@@ -259,6 +313,8 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
           minimumOrderQuantity: 1,
           notes: "",
         },
+        sizesWithPrices: [],
+        extras: [],
       });
       setColors([]);
       setSizes([]);
@@ -269,6 +325,10 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
       setShowCustomCategory(false);
       setDiscountPrice("");
       setShowWholesaleInfo(false);
+      setNewSize("");
+      setNewSizePrice("");
+      setNewExtraName("");
+      setNewExtraPrice("");
       toast.success("تمت إضافة المنتج بنجاح");
     } catch (error) {
       console.error("خطأ في إضافة المنتج:", error);
@@ -336,8 +396,8 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
                 <SelectValue placeholder="اختر تصنيفًا" />
               </SelectTrigger>
               <SelectContent position="popper" sideOffset={4}>
-                {fixedCategories.map((category) => (
-                  <SelectItem key={category} value={category}>
+                {[...new Set(fixedCategories)].map((category, idx) => (
+                  <SelectItem key={category + "-" + idx} value={category}>
                     {category}
                   </SelectItem>
                 ))}
@@ -383,8 +443,11 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
                     <SelectValue placeholder="اختر تصنيفًا فرعيًا" />
                   </SelectTrigger>
                   <SelectContent position="popper" sideOffset={4}>
-                    {uniqueSubcategories.map((subcategory) => (
-                      <SelectItem key={subcategory} value={subcategory}>
+                    {uniqueSubcategories.map((subcategory, idx) => (
+                      <SelectItem
+                        key={subcategory + "-" + idx}
+                        value={subcategory}
+                      >
                         {subcategory}
                       </SelectItem>
                     ))}
@@ -519,67 +582,125 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
             </SelectContent>
           </Select>
           <div className="flex flex-wrap gap-2 mt-2">
-            {colors.map((color, index) => {
-              const colorInfo = commonColors.find((c) => c.value === color) || {
-                name: color,
-                value: color,
-              };
-              return (
-                <div key={index} className="relative inline-flex items-center">
-                  <div
-                    className="h-9 w-9 rounded-full border"
-                    style={{ backgroundColor: color }}
-                  />
-                  <div className="ml-2">{colorInfo.name}</div>
-                  <button
-                    type="button"
-                    onClick={() => removeColor(color)}
-                    className="absolute -right-1 -top-1 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div> */}
-
-      {/* sizes section */}
-      {/* <div>
-        <label className="text-sm font-medium">الأحجام *</label>
-        <div className="space-y-2">
-          <Select onValueChange={addSize}>
-            <SelectTrigger className="w-full shrink-0">
-              <SelectValue placeholder="اختر حجمًا" />
-            </SelectTrigger>
-            <SelectContent position="popper" sideOffset={4}>
-              {commonSizes.map((size) => (
-                <SelectItem key={size} value={size}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {sizes.map((size, index) => (
-              <div
-                key={index}
-                className="relative inline-flex items-center rounded-md border bg-background px-3 py-1"
-              >
-                {size}
+            {colors.map((color, idx) => (
+              <div key={color + '-' + idx} className="relative inline-flex items-center">
+                <div
+                  className="h-9 w-9 rounded-full border"
+                  style={{ backgroundColor: color }}
+                />
+                <div className="ml-2">{color}</div>
                 <button
                   type="button"
-                  onClick={() => removeSize(size)}
-                  className="ml-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => removeColor(color)}
+                  className="absolute -right-1 -top-1 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3 w-3" />
                 </button>
               </div>
             ))}
           </div>
         </div>
       </div> */}
+
+      {/* sizes section */}
+      <div className="mb-4">
+        <label className="text-sm font-medium block mb-2">
+          الأحجام والأسعار
+        </label>
+        <div className="flex gap-2 mb-2">
+          <Input
+            placeholder="الحجم (مثال: صغير)"
+            value={newSize}
+            onChange={(e) => setNewSize(e.target.value)}
+            className="w-1/2"
+          />
+          <Input
+            placeholder="السعر لهذا الحجم"
+            type="number"
+            min="0"
+            value={newSizePrice}
+            onChange={(e) => setNewSizePrice(e.target.value)}
+            className="w-1/2"
+          />
+          <Button type="button" onClick={handleAddSizeWithPrice}>
+            إضافة
+          </Button>
+        </div>
+        {formData.sizesWithPrices.length > 0 && (
+          <div className="space-y-2">
+            {formData.sizesWithPrices.map((item, idx) => (
+              <div
+                key={item.size + "-" + idx}
+                className="flex gap-2 items-center"
+              >
+                <span className="px-2 py-1 bg-gray-100 rounded">
+                  {item.size}
+                </span>
+                <span className="px-2 py-1 bg-gray-100 rounded">
+                  {item.price} جنيه
+                </span>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleRemoveSizeWithPrice(idx)}
+                >
+                  حذف
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Extras section */}
+      <div className="mb-4">
+        <label className="text-sm font-medium block mb-2">الإضافات</label>
+        <div className="flex gap-2 mb-2">
+          <Input
+            placeholder="اسم الإضافة (مثال: جبنة)"
+            value={newExtraName}
+            onChange={(e) => setNewExtraName(e.target.value)}
+            className="w-1/2"
+          />
+          <Input
+            placeholder="سعر الإضافة"
+            type="number"
+            min="0"
+            value={newExtraPrice}
+            onChange={(e) => setNewExtraPrice(e.target.value)}
+            className="w-1/2"
+          />
+          <Button type="button" onClick={handleAddExtra}>
+            إضافة
+          </Button>
+        </div>
+        {formData.extras.length > 0 && (
+          <div className="space-y-2">
+            {formData.extras.map((item, idx) => (
+              <div
+                key={item.name + "-" + idx}
+                className="flex gap-2 items-center"
+              >
+                <span className="px-2 py-1 bg-gray-100 rounded">
+                  {item.name}
+                </span>
+                <span className="px-2 py-1 bg-gray-100 rounded">
+                  {item.price} جنيه
+                </span>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleRemoveExtra(idx)}
+                >
+                  حذف
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div>
         <label className="text-sm font-medium">الصور</label>
@@ -604,7 +725,7 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
           </div>
           <div className="mt-2 grid grid-cols-4 gap-2">
             {formData.images.map((url, index) => (
-              <div key={index} className="relative">
+              <div key={url + "-" + index} className="relative">
                 <img
                   src={url}
                   alt={`Product ${index + 1}`}

@@ -219,44 +219,6 @@ export function ProductFilters() {
           </AccordionContent>
         </AccordionItem>
 
-        {/* Supplier Filter */}
-        <AccordionItem value="supplier">
-          <AccordionTrigger>{t("filters.supplier")}</AccordionTrigger>
-          <AccordionContent>
-            <RadioGroup
-              value={filters.supplier || "all"}
-              onValueChange={(value) =>
-                setFilters({
-                  ...filters,
-                  supplier: value === "all" ? undefined : value,
-                })
-              }
-              className="space-y-2 pt-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="all" id="all-suppliers" />
-                <Label htmlFor="all-suppliers">
-                  {t("filters.allSuppliers")}
-                </Label>
-              </div>
-              {suppliers.map(({ name, count }) => (
-                <div
-                  key={name}
-                  className="flex items-center justify-between space-x-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value={name} id={name} />
-                    <Label htmlFor={name}>{name}</Label>
-                  </div>
-                  <span className="text-sm text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-full">
-                    {count}
-                  </span>
-                </div>
-              ))}
-            </RadioGroup>
-          </AccordionContent>
-        </AccordionItem>
-
         {/* Category Filter */}
         <AccordionItem value="category">
           <AccordionTrigger>{t("filters.category")}</AccordionTrigger>

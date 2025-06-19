@@ -29,8 +29,8 @@ if (!fs.existsSync(storePath)) {
 }
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 app.use(cors());
 
 // Add cache control headers middleware
@@ -100,6 +100,31 @@ app.post("/api/save-store", ((req: Request, res: Response) => {
   }
 }) as unknown as express.RequestHandler);
 
+// Save store data endpoint (for /api/store)
+app.post("/api/store", ((req: Request, res: Response) => {
+  try {
+    const storeData = req.body;
+
+    // Validate the data structure
+    if (!storeData || !Array.isArray(storeData.products)) {
+      return res.status(400).json({ error: "Invalid store data format" });
+    }
+
+    // Write to store.json file
+    if (writeStoreData(storeData)) {
+      console.log(
+        "Store data saved successfully to store.json (via /api/store)"
+      );
+      res.json({ success: true, message: "Store data saved successfully" });
+    } else {
+      res.status(500).json({ error: "Failed to save store data" });
+    }
+  } catch (error) {
+    console.error("Error saving store data (via /api/store):", error);
+    res.status(500).json({ error: "Failed to save store data" });
+  }
+}) as unknown as express.RequestHandler);
+
 // Get store data endpoint
 app.get("/api/store", ((req: Request, res: Response) => {
   try {
@@ -134,6 +159,37 @@ app.post("/api/products", (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error adding product:", error);
     res.status(500).json({ error: "Failed to add product" });
+  }
+});
+
+// Add single branch endpoint
+app.post("/api/branches", (req: Request, res: Response) => {
+  try {
+    const newBranch = req.body;
+    const storeData = readStoreData();
+
+    // Ensure branches array exists
+    if (!Array.isArray(storeData.branches)) {
+      storeData.branches = [];
+    }
+
+    // Add new branch
+    storeData.branches.push(newBranch);
+
+    // Save back to file
+    if (writeStoreData(storeData)) {
+      console.log("Branch added successfully to store.json:", newBranch.name);
+      res.status(201).json({
+        success: true,
+        message: "Branch added successfully",
+        branch: newBranch,
+      });
+    } else {
+      res.status(500).json({ error: "Failed to add branch" });
+    }
+  } catch (error) {
+    console.error("Error adding branch:", error);
+    res.status(500).json({ error: "Failed to add branch" });
   }
 });
 

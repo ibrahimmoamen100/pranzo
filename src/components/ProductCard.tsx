@@ -66,6 +66,13 @@ export const ProductCard = ({
   const isInCart = cart.some((item) => item.product.id === product.id);
 
   const handleAddToCart = () => {
+    if (
+      (product.sizesWithPrices && product.sizesWithPrices.length > 0) ||
+      (product.extras && product.extras.length > 0)
+    ) {
+      navigate(`/products/${product.id}`);
+      return;
+    }
     if (isInCart) {
       toast.error(t("cart.productAlreadyInCart"), {
         description: t("cart.pleaseUpdateQuantity"),
@@ -76,7 +83,6 @@ export const ProductCard = ({
       });
       return;
     }
-
     addToCart(product, 1);
     toast.success(`${t("cart.productAdded")}: ${product.name}`, {
       description: t("cart.whatWouldYouLikeToDo"),

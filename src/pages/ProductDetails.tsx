@@ -28,6 +28,13 @@ import {
 import { Link } from "react-router-dom";
 import Footer from "@/components/Footer";
 import { formatPrice } from "@/utils/format";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -36,12 +43,17 @@ const ProductDetails = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [selectedSizeIdx, setSelectedSizeIdx] = useState(0);
+  const [selectedExtraIdx, setSelectedExtraIdx] = useState<number | null>(null);
   const products = useStore((state) => state.products);
   const cart = useStore((state) => state.cart);
   const addToCart = useStore((state) => state.addToCart);
   const removeFromCart = useStore((state) => state.removeFromCart);
   const updateCartItemQuantity = useStore(
     (state) => state.updateCartItemQuantity
+  );
+  const updateCartItemOptions = useStore(
+    (state) => state.updateCartItemOptions
   );
 
   // Find current product
@@ -60,18 +72,67 @@ const ProductDetails = () => {
     )
     .slice(0, 4);
 
+  // Calculate price for selected size and extra
+  const selectedSizePrice =
+    product.sizesWithPrices && product.sizesWithPrices.length > 0
+      ? Number(product.sizesWithPrices[selectedSizeIdx]?.price || 0)
+      : 0;
+  const selectedExtraPrice =
+    product.extras && product.extras.length > 0 && selectedExtraIdx !== null
+      ? Number(product.extras[selectedExtraIdx]?.price || 0)
+      : 0;
+  const displayPrice =
+    Number(product.price) + selectedSizePrice + selectedExtraPrice;
+
   useEffect(() => {
     if (!product) {
       navigate("/products");
     }
   }, [product, navigate]);
 
+  useEffect(() => {
+    if (!product) return;
+    if (!cartItem) {
+      setSelectedSizeIdx(0);
+      setSelectedExtraIdx(null);
+      return;
+    }
+    if (
+      product.sizesWithPrices &&
+      product.sizesWithPrices.length > 0 &&
+      cartItem.selectedSize
+    ) {
+      const idx = product.sizesWithPrices.findIndex(
+        (s) => s.size === cartItem.selectedSize
+      );
+      setSelectedSizeIdx(idx >= 0 ? idx : 0);
+    } else {
+      setSelectedSizeIdx(0);
+    }
+    if (product.extras && product.extras.length > 0 && cartItem.selectedExtra) {
+      const idx = product.extras.findIndex(
+        (e) => e.name === cartItem.selectedExtra
+      );
+      setSelectedExtraIdx(idx >= 0 ? idx : null);
+    } else {
+      setSelectedExtraIdx(null);
+    }
+  }, [product, cartItem]);
+
   if (!product) {
     return null;
   }
 
   const handleAddToCart = () => {
-    addToCart(product);
+    const selectedSize =
+      product.sizesWithPrices && product.sizesWithPrices.length > 0
+        ? product.sizesWithPrices[selectedSizeIdx]?.size
+        : undefined;
+    const selectedExtra =
+      product.extras && product.extras.length > 0 && selectedExtraIdx !== null
+        ? product.extras[selectedExtraIdx]?.name
+        : undefined;
+    addToCart(product, 1, selectedSize, selectedExtra);
     toast.success(`${t("cart.productAdded")}: ${product.name}`, {
       duration: 5000,
       dismissible: true,
@@ -165,6 +226,27 @@ const ProductDetails = () => {
         </div>
       );
     });
+  };
+
+  const handleSizeChange = (idx: number) => {
+    setSelectedSizeIdx(idx);
+    if (
+      cartItem &&
+      product.sizesWithPrices &&
+      product.sizesWithPrices.length > 0
+    ) {
+      const selectedSize = product.sizesWithPrices[idx]?.size;
+      updateCartItemOptions(product.id, selectedSize, cartItem.selectedExtra);
+    }
+  };
+
+  const handleExtraChange = (idx: number | null) => {
+    setSelectedExtraIdx(idx);
+    if (cartItem && product.extras && product.extras.length > 0) {
+      const selectedExtra =
+        idx !== null ? product.extras[idx]?.name : undefined;
+      updateCartItemOptions(product.id, cartItem.selectedSize, selectedExtra);
+    }
   };
 
   return (
@@ -323,60 +405,73 @@ const ProductDetails = () => {
                 </div>
               </div>
 
+              {/* Size selection as buttons */}
+              {product.sizesWithPrices &&
+                product.sizesWithPrices.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-sm font-medium mb-2">اختر الحجم</h3>
+                    <div className="flex gap-2 flex-wrap">
+                      {product.sizesWithPrices.map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className={`px-3 py-2 rounded border text-sm font-medium transition-colors duration-150 ${
+                            selectedSizeIdx === idx
+                              ? "bg-primary text-white border-primary"
+                              : "bg-gray-100 text-gray-800 border-gray-300 hover:bg-primary/10"
+                          }`}
+                          onClick={() => handleSizeChange(idx)}
+                        >
+                          {item.size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* Extras selection as buttons */}
+              {product.extras && product.extras.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium mb-2">اختر الإضافة</h3>
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      className={`px-3 py-2 rounded border text-sm font-medium transition-colors duration-150 ${
+                        selectedExtraIdx === null
+                          ? "bg-primary text-white border-primary"
+                          : "bg-gray-100 text-gray-800 border-gray-300 hover:bg-primary/10"
+                      }`}
+                      onClick={() => handleExtraChange(null)}
+                    >
+                      بدون إضافة
+                    </button>
+                    {product.extras.map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className={`px-3 py-2 rounded border text-sm font-medium transition-colors duration-150 ${
+                          selectedExtraIdx === idx
+                            ? "bg-primary text-white border-primary"
+                            : "bg-gray-100 text-gray-800 border-gray-300 hover:bg-primary/10"
+                        }`}
+                        onClick={() => handleExtraChange(idx)}
+                      >
+                        {item.name}{" "}
+                        {item.price &&
+                          `+${formatPrice(Number(item.price))} جنيه`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <h2 className="text-sm font-medium text-muted-foreground">
-                  {t("products.price")}
+                  السعر
                 </h2>
-                <div className="space-y-2">
-                  {product.specialOffer &&
-                  new Date(product.offerEndsAt as string) > new Date() ? (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-red-600">
-                          {formatPrice(
-                            product.price -
-                              (product.price *
-                                (product.discountPercentage || 0)) /
-                                100
-                          )}
-                        </span>
-                        <span className="text-lg line-through text-muted-foreground">
-                          {formatPrice(product.price)}
-                        </span>
-                        <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-sm font-medium">
-                          {product.discountPercentage}% {t("products.off")}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-red-600">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="animate-pulse"
-                        >
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </svg>
-                        <p>
-                          {t("products.specialOffersEndsIn")}{" "}
-                          {new Date(
-                            product.offerEndsAt as string
-                          ).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <span className="text-2xl font-bold">
-                      {formatPrice(product.price)}
-                    </span>
-                  )}
-                </div>
+                <span className="text-2xl font-bold text-primary">
+                  {formatPrice(displayPrice)} جنيه
+                </span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -386,9 +481,11 @@ const ProductDetails = () => {
                   </h3>
                   <p className="text-muted-foreground">
                     {product.category}
-                    {product.subcategory && (
+                    {product.subcategory &&
+                    product.subcategory !== "لا يوجد" &&
+                    product.subcategory.trim() !== "" ? (
                       <span className="ml-1">/ {product.subcategory}</span>
-                    )}
+                    ) : null}
                   </p>
                 </div>
 
@@ -431,21 +528,6 @@ const ProductDetails = () => {
                 />
               </div>
             </div>
-
-            {/* <div className="bg-secondary/10 p-4 rounded-lg">
-                <h3 className="text-sm font-medium mb-2">
-                  {t("products.size")}
-                </h3>
-                <p className="text-muted-foreground">{product.size}</p>
-              </div> */}
-            {/* <div className="bg-secondary/10 p-4 rounded-lg">
-                <h3 className="text-sm font-medium mb-2">
-                  {t("products.color")}
-                </h3>
-                <div className="text-muted-foreground">
-                  {displayColors(product.color)}
-                </div>
-              </div> */}
 
             <div className="flex flex-col gap-4">
               {cartItem ? (

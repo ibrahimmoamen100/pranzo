@@ -32,6 +32,22 @@ export const ProductSchema = z.object({
       notes: z.string().optional(),
     })
     .optional(),
+  sizesWithPrices: z
+    .array(
+      z.object({
+        size: z.string(),
+        price: z.string(),
+      })
+    )
+    .optional(),
+  extras: z
+    .array(
+      z.object({
+        name: z.string(),
+        price: z.string(),
+      })
+    )
+    .optional(),
 });
 
 export type Product = z.infer<typeof ProductSchema>;
