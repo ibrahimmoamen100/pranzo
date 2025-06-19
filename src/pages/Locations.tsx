@@ -80,7 +80,8 @@ export default function Locations() {
   // جلب الفروع من backend
   useEffect(() => {
     setLoadingBranches(true);
-    fetch("http://localhost:3001/api/store")
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+    fetch(`${apiUrl}/api/store`)
       .then((res) => {
         if (!res.ok) throw new Error("فشل في جلب الفروع");
         return res.json();

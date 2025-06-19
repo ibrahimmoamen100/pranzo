@@ -121,7 +121,8 @@ const Cart = () => {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const response = await fetch("http://localhost:3001/api/store");
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+        const response = await fetch(`${apiUrl}/api/store`);
         if (!response.ok) return;
         const data = await response.json();
         if (Array.isArray(data.branches)) {
