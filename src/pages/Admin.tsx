@@ -219,15 +219,21 @@ const Admin = () => {
   const handleDelete = useCallback(
     async (id: string) => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-        const response = await fetch(`${apiUrl}/api/products/${id}`, {
-          method: "DELETE",
-        });
+        try {
+          const response = await fetch(
+            `http://localhost:3001/api/products/${id}`,
+            {
+              method: "DELETE",
+            }
+          );
 
-        if (response.ok) {
-          console.log("Product deleted from store.json via API");
-        } else {
-          console.warn("API delete failed, using direct store update");
+          if (response.ok) {
+            console.log("Product deleted from store.json via API");
+          } else {
+            console.warn("API delete failed, using direct store update");
+          }
+        } catch (apiError) {
+          console.log("API server not available, using direct store update");
         }
 
         deleteProduct(id);
@@ -242,22 +248,25 @@ const Admin = () => {
   const handleSaveEdit = useCallback(
     async (updatedProduct: Product) => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-        const response = await fetch(
-          `${apiUrl}/api/products/${updatedProduct.id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(updatedProduct),
-          }
-        );
+        try {
+          const response = await fetch(
+            `http://localhost:3001/api/products/${updatedProduct.id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(updatedProduct),
+            }
+          );
 
-        if (response.ok) {
-          console.log("Product updated in store.json via API");
-        } else {
-          console.warn("API update failed, using direct store update");
+          if (response.ok) {
+            console.log("Product updated in store.json via API");
+          } else {
+            console.warn("API update failed, using direct store update");
+          }
+        } catch (apiError) {
+          console.log("API server not available, using direct store update");
         }
 
         updateProduct(updatedProduct);
@@ -288,8 +297,7 @@ const Admin = () => {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-        const response = await fetch(`${apiUrl}/api/store`);
+        const response = await fetch("http://localhost:3001/api/store");
         if (!response.ok) throw new Error("فشل في تحميل بيانات الفروع");
         const data = await response.json();
         if (Array.isArray(data.branches)) {
@@ -317,8 +325,7 @@ const Admin = () => {
       return;
     }
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/api/branches`, {
+      const response = await fetch("http://localhost:3001/api/branches", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -360,8 +367,7 @@ const Admin = () => {
     if (!editBranchForm || !storeData) return;
     try {
       // تحديث الفرع في store.json
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/api/store`, {
+      const response = await fetch("http://localhost:3001/api/store", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -394,8 +400,7 @@ const Admin = () => {
       if (!storeData) throw new Error();
       const newBranches = branches.filter((_, i) => i !== deleteBranchIdx);
       // تحديث store.json
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/api/store`, {
+      const response = await fetch("http://localhost:3001/api/store", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

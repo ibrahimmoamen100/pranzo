@@ -4,7 +4,7 @@ import initialData from "../data/store.json";
 import { persist } from "zustand/middleware";
 
 interface CartItem {
-  product: Product;
+  productId: string;
   quantity: number;
   selectedSize?: string;
   selectedExtra?: string;
@@ -34,12 +34,23 @@ interface StoreState {
     selectedSize?: string,
     selectedExtra?: string
   ) => void;
+  refreshProducts: () => void;
 }
+
+// Function to load products from store.json
+const loadProductsFromFile = (): Product[] => {
+  try {
+    return initialData.products || [];
+  } catch (error) {
+    console.error("Error loading products from store.json:", error);
+    return [];
+  }
+};
 
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
-      products: initialData.products || [],
+      products: loadProductsFromFile(),
       cart: [],
       filters: {
         search: undefined,
@@ -58,7 +69,7 @@ export const useStore = create<StoreState>()(
         set((state) => {
           const existingItem = state.cart.find(
             (cartItem) =>
-              cartItem.product.id === product.id &&
+              cartItem.productId === product.id &&
               cartItem.selectedSize === selectedSize &&
               cartItem.selectedExtra === selectedExtra
           );
@@ -66,7 +77,7 @@ export const useStore = create<StoreState>()(
           if (existingItem) {
             return {
               cart: state.cart.map((cartItem) =>
-                cartItem.product.id === product.id &&
+                cartItem.productId === product.id &&
                 cartItem.selectedSize === selectedSize &&
                 cartItem.selectedExtra === selectedExtra
                   ? { ...cartItem, quantity: cartItem.quantity + quantity }
@@ -78,24 +89,24 @@ export const useStore = create<StoreState>()(
           return {
             cart: [
               ...state.cart,
-              { product, quantity, selectedSize, selectedExtra },
+              { productId: product.id, quantity, selectedSize, selectedExtra },
             ],
           };
         }),
       removeFromCart: (productId) =>
         set((state) => ({
-          cart: state.cart.filter((item) => item.product.id !== productId),
+          cart: state.cart.filter((item) => item.productId !== productId),
         })),
       updateCartItemQuantity: (productId, quantity) =>
         set((state) => {
           if (quantity <= 0) {
             return {
-              cart: state.cart.filter((item) => item.product.id !== productId),
+              cart: state.cart.filter((item) => item.productId !== productId),
             };
           }
           return {
             cart: state.cart.map((item) =>
-              item.product.id === productId ? { ...item, quantity } : item
+              item.productId === productId ? { ...item, quantity } : item
             ),
           };
         }),
@@ -140,14 +151,14 @@ export const useStore = create<StoreState>()(
         selectedExtra?: string
       ) =>
         set((state) => {
-          const item = state.cart.find((i) => i.product.id === productId);
+          const item = state.cart.find((i) => i.productId === productId);
           if (!item) return {};
           if (
             item.selectedSize === selectedSize &&
             item.selectedExtra === selectedExtra
           )
             return {};
-          const newCart = state.cart.filter((i) => i.product.id !== productId);
+          const newCart = state.cart.filter((i) => i.productId !== productId);
           newCart.push({
             ...item,
             selectedSize,
@@ -155,11 +166,21 @@ export const useStore = create<StoreState>()(
           });
           return { cart: newCart };
         }),
+      refreshProducts: () => {
+        const freshProducts = loadProductsFromFile();
+        set((state) => ({
+          products: freshProducts,
+          cart: state.cart.filter((item) =>
+            freshProducts.some((p) => p.id === item.productId)
+          ),
+        }));
+      },
     }),
     {
       name: "shop-storage",
       partialize: (state) => ({
         cart: state.cart,
+        filters: state.filters,
       }),
     }
   )
@@ -169,3 +190,8 @@ export const useStore = create<StoreState>()(
 setInterval(() => {
   useStore.getState().checkExpiredProducts();
 }, 60000);
+
+// Refresh products from file every 5 minutes
+setInterval(() => {
+  useStore.getState().refreshProducts();
+}, 300000);

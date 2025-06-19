@@ -173,33 +173,16 @@ app.post("/api/branches", (req: Request, res: Response) => {
       storeData.branches = [];
     }
 
-    // Generate unique ID for the branch
-    const branchId = `branch_${Date.now()}_${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
-
-    // Add ID to the branch
-    const branchWithId = {
-      ...newBranch,
-      id: branchId,
-      createdAt: new Date().toISOString(),
-    };
-
     // Add new branch
-    storeData.branches.push(branchWithId);
+    storeData.branches.push(newBranch);
 
     // Save back to file
     if (writeStoreData(storeData)) {
-      console.log(
-        "Branch added successfully to store.json:",
-        branchWithId.name,
-        "ID:",
-        branchId
-      );
+      console.log("Branch added successfully to store.json:", newBranch.name);
       res.status(201).json({
         success: true,
         message: "Branch added successfully",
-        branch: branchWithId,
+        branch: newBranch,
       });
     } else {
       res.status(500).json({ error: "Failed to add branch" });

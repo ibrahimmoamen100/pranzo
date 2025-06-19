@@ -57,6 +57,7 @@ interface SupplierGroup {
 }
 
 const Cart = () => {
+  const products = useStore((state) => state.products);
   const cart = useStore((state) => state.cart);
   const removeFromCart = useStore((state) => state.removeFromCart);
   const addToCart = useStore((state) => state.addToCart);
@@ -121,8 +122,7 @@ const Cart = () => {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-        const response = await fetch(`${apiUrl}/api/store`);
+        const response = await fetch("http://localhost:3001/api/store");
         if (!response.ok) return;
         const data = await response.json();
         if (Array.isArray(data.branches)) {
@@ -133,20 +133,28 @@ const Cart = () => {
     fetchBranches();
   }, []);
 
+  // اربط cart مع المنتجات
+  const cartWithProducts = cart
+    .map((item) => ({
+      ...item,
+      product: products.find((p) => p.id === item.productId),
+    }))
+    .filter((item) => item.product); // تجاهل العناصر التي لم يعد لها منتج
+
   // Group cart items by supplier
-  const supplierGroups: SupplierGroup[] = cart.reduce(
+  const supplierGroups: SupplierGroup[] = cartWithProducts.reduce(
     (groups: SupplierGroup[], item) => {
       const supplierName =
-        item.product.wholesaleInfo?.supplierName || DEFAULT_SUPPLIER.name;
+        item.product?.wholesaleInfo?.supplierName || DEFAULT_SUPPLIER.name;
       const supplierPhone = (
-        item.product.wholesaleInfo?.supplierPhone || DEFAULT_SUPPLIER.phone
+        item.product?.wholesaleInfo?.supplierPhone || DEFAULT_SUPPLIER.phone
       ).replace(/^0/, "20");
 
       const existingGroup = groups.find(
         (group) => group.supplierName === supplierName
       );
       const price =
-        item.product.specialOffer && item.product.discountPercentage
+        item.product?.specialOffer && item.product?.discountPercentage
           ? item.product.price -
             (item.product.price * item.product.discountPercentage) / 100
           : item.product.price;
@@ -192,24 +200,24 @@ const Cart = () => {
       return;
     }
     // بناء رسالة الطلب
-    const orderDetails = cart
+    const orderDetails = cartWithProducts
       .map((item, idx) => {
         let sizePrice = 0;
         let extraPrice = 0;
-        if (item.selectedSize && item.product.sizesWithPrices) {
+        if (item.selectedSize && item.product?.sizesWithPrices) {
           const foundSize = item.product.sizesWithPrices.find(
             (s) => s.size === item.selectedSize
           );
           if (foundSize) sizePrice = Number(foundSize.price || 0);
         }
-        if (item.selectedExtra && item.product.extras) {
+        if (item.selectedExtra && item.product?.extras) {
           const foundExtra = item.product.extras.find(
             (e) => e.name === item.selectedExtra
           );
           if (foundExtra) extraPrice = Number(foundExtra.price || 0);
         }
         const basePrice =
-          item.product.specialOffer && item.product.discountPercentage
+          item.product?.specialOffer && item.product?.discountPercentage
             ? item.product.price -
               (item.product.price * item.product.discountPercentage) / 100
             : item.product.price;
@@ -244,24 +252,24 @@ const Cart = () => {
       `📦 *تفاصيل الطلب:*\n` +
       `${orderDetails}\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `💰 *المجموع:* ${cart
+      `💰 *المجموع:* ${cartWithProducts
         .reduce((total, item) => {
           let sizePrice = 0;
           let extraPrice = 0;
-          if (item.selectedSize && item.product.sizesWithPrices) {
+          if (item.selectedSize && item.product?.sizesWithPrices) {
             const foundSize = item.product.sizesWithPrices.find(
               (s) => s.size === item.selectedSize
             );
             if (foundSize) sizePrice = Number(foundSize.price || 0);
           }
-          if (item.selectedExtra && item.product.extras) {
+          if (item.selectedExtra && item.product?.extras) {
             const foundExtra = item.product.extras.find(
               (e) => e.name === item.selectedExtra
             );
             if (foundExtra) extraPrice = Number(foundExtra.price || 0);
           }
           const basePrice =
-            item.product.specialOffer && item.product.discountPercentage
+            item.product?.specialOffer && item.product?.discountPercentage
               ? item.product.price -
                 (item.product.price * item.product.discountPercentage) / 100
               : item.product.price;
@@ -286,7 +294,7 @@ const Cart = () => {
     selectedExtra?: string
   ) => {
     // إزالة العنصر القديم بنفس المنتج والحجم/الإضافة القديمة
-    const item = cart.find((i) => i.product.id === productId);
+    const item = cartWithProducts.find((i) => i.product.id === productId);
     if (!item) return;
     removeFromCart(productId);
     // أضف العنصر الجديد بنفس الكمية ولكن بالحجم/الإضافة الجديدة
@@ -356,17 +364,17 @@ const Cart = () => {
                 >
                   {/* Products List */}
                   <div className="divide-y">
-                    {cart.map((item, idx) => {
+                    {cartWithProducts.map((item, idx) => {
                       // حساب السعر حسب الحجم والإضافة المختارة
                       let sizePrice = 0;
                       let extraPrice = 0;
-                      if (item.selectedSize && item.product.sizesWithPrices) {
+                      if (item.selectedSize && item.product?.sizesWithPrices) {
                         const foundSize = item.product.sizesWithPrices.find(
                           (s) => s.size === item.selectedSize
                         );
                         if (foundSize) sizePrice = Number(foundSize.price || 0);
                       }
-                      if (item.selectedExtra && item.product.extras) {
+                      if (item.selectedExtra && item.product?.extras) {
                         const foundExtra = item.product.extras.find(
                           (e) => e.name === item.selectedExtra
                         );
@@ -374,8 +382,8 @@ const Cart = () => {
                           extraPrice = Number(foundExtra.price || 0);
                       }
                       const basePrice =
-                        item.product.specialOffer &&
-                        item.product.discountPercentage
+                        item.product?.specialOffer &&
+                        item.product?.discountPercentage
                           ? item.product.price -
                             (item.product.price *
                               item.product.discountPercentage) /
@@ -556,13 +564,13 @@ const Cart = () => {
                       مجموع طلباتك
                     </span>
                     <span className="text-2xl font-extrabold text-green-700 tracking-wider">
-                      {cart
+                      {cartWithProducts
                         .reduce((total, item) => {
                           let sizePrice = 0;
                           let extraPrice = 0;
                           if (
                             item.selectedSize &&
-                            item.product.sizesWithPrices
+                            item.product?.sizesWithPrices
                           ) {
                             const foundSize = item.product.sizesWithPrices.find(
                               (s) => s.size === item.selectedSize
@@ -570,7 +578,7 @@ const Cart = () => {
                             if (foundSize)
                               sizePrice = Number(foundSize.price || 0);
                           }
-                          if (item.selectedExtra && item.product.extras) {
+                          if (item.selectedExtra && item.product?.extras) {
                             const foundExtra = item.product.extras.find(
                               (e) => e.name === item.selectedExtra
                             );
@@ -578,8 +586,8 @@ const Cart = () => {
                               extraPrice = Number(foundExtra.price || 0);
                           }
                           const basePrice =
-                            item.product.specialOffer &&
-                            item.product.discountPercentage
+                            item.product?.specialOffer &&
+                            item.product?.discountPercentage
                               ? item.product.price -
                                 (item.product.price *
                                   item.product.discountPercentage) /

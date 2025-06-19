@@ -55,12 +55,18 @@ const ProductDetails = () => {
   const updateCartItemOptions = useStore(
     (state) => state.updateCartItemOptions
   );
+  const refreshProducts = useStore((state) => state.refreshProducts);
+
+  // Refresh products from store.json when component mounts
+  useEffect(() => {
+    refreshProducts();
+  }, [refreshProducts]);
 
   // Find current product
   const product = products.find((p) => p.id === id);
 
   // Check if product is in cart
-  const cartItem = cart.find((item) => item.product.id === id);
+  const cartItem = cart.find((item) => item.productId === id);
 
   // Find suggested products (same category, excluding current product)
   const suggestedProducts = products

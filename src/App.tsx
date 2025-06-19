@@ -5,9 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { createPortal } from "react-dom";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import "./i18n/config";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { useStore } from "./store/useStore";
 
 // Lazy load pages
 const Index = lazy(() => import("./pages/Index"));
@@ -41,6 +42,18 @@ const queryClient = new QueryClient({
   },
 });
 
+// Component to handle data loading
+const DataLoader = () => {
+  const refreshProducts = useStore((state) => state.refreshProducts);
+
+  useEffect(() => {
+    // Load products from store.json on app start
+    refreshProducts();
+  }, [refreshProducts]);
+
+  return null;
+};
+
 const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
@@ -48,6 +61,7 @@ const App = () => (
         {createPortal(<Toaster />, document.body)}
         {createPortal(<Sonner />, document.body)}
         <BrowserRouter>
+          <DataLoader />
           <ScrollToTop />
           <Suspense fallback={<Loading />}>
             <Routes>

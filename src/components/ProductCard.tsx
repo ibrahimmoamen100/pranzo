@@ -63,7 +63,7 @@ export const ProductCard = ({
   }, [product.specialOffer, product.offerEndsAt]);
 
   // Check if product is in cart
-  const isInCart = cart.some((item) => item.product.id === product.id);
+  const isInCart = cart.some((item) => item.productId === product.id);
 
   const handleAddToCart = () => {
     if (

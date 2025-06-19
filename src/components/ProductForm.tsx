@@ -100,7 +100,6 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
   const [newSizePrice, setNewSizePrice] = useState("");
   const [newExtraName, setNewExtraName] = useState("");
   const [newExtraPrice, setNewExtraPrice] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get unique subcategories from existing products
   const getUniqueSubcategories = (category: string) => {
@@ -221,28 +220,52 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+
+    // Use custom values if they exist, otherwise use selected values
+    const finalSubcategory = showCustomSubcategory
+      ? customSubcategory
+      : formData.subcategory;
+    const finalCategory = showCustomCategory
+      ? formData.category
+      : formData.category;
+
+    if (!formData.name || !finalCategory || !finalSubcategory) {
+      toast.error("الرجاء تعبئة جميع الحقول المطلوبة");
+      return;
+    }
+
+    if (formData.sizesWithPrices.length === 0) {
+      toast.error("يرجى إضافة حجم واحد على الأقل مع السعر");
+      return;
+    }
+
+    // Validate special offer fields if special offer is enabled
+    if (formData.specialOffer) {
+      if (!formData.discountPercentage) {
+        toast.error("الرجاء إدخال نسبة الخصم للعرض الخاص");
+        return;
+      }
+      if (!offerEndDate) {
+        toast.error("الرجاء تحديد تاريخ انتهاء للعرض الخاص");
+        return;
+      }
+    }
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
       const product = {
-        id: formData.id,
-        name: formData.name,
-        price: Number(formData.price),
-        category: formData.category,
-        subcategory: formData.subcategory,
-        images: formData.images,
-        description: formData.description,
-        color: colors.length > 0 ? colors.join(", ") : undefined,
-        size: sizes.length > 0 ? sizes.join(", ") : undefined,
-        specialOffer: formData.specialOffer,
-        discountPercentage: formData.discountPercentage
+        ...formData,
+        subcategory: finalSubcategory,
+        category: finalCategory,
+        price: formData.price ? Number(formData.price) : undefined,
+        color: colors.length > 0 ? colors.join(",") : "",
+        size: sizes.length > 0 ? sizes.join(",") : "",
+        sizesWithPrices: formData.sizesWithPrices,
+        discountPercentage: formData.specialOffer
           ? Number(formData.discountPercentage)
           : undefined,
-        offerEndsAt: formData.offerEndsAt || undefined,
-        sizesWithPrices:
-          formData.sizesWithPrices.length > 0
-            ? formData.sizesWithPrices
+        offerEndsAt:
+          formData.specialOffer && offerEndDate
+            ? offerEndDate.toISOString()
             : undefined,
         isArchived: formData.isArchived,
         createdAt: new Date().toISOString(),
@@ -252,7 +275,7 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
       };
 
       // Save via API
-      const response = await fetch(`${apiUrl}/api/products`, {
+      const response = await fetch("http://localhost:3001/api/products", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -310,8 +333,6 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
     } catch (error) {
       console.error("خطأ في إضافة المنتج:", error);
       toast.error("فشل في إضافة المنتج");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
