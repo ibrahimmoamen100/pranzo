@@ -40,6 +40,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import storeData from "@/data/store.json";
 
 interface DeliveryFormData {
   fullName: string;
@@ -76,7 +77,7 @@ const Cart = () => {
     notes: "",
   });
   const [branches, setBranches] = useState<{ name: string; phone: string }[]>(
-    []
+    storeData.branches || []
   );
   const [selectedBranch, setSelectedBranch] = useState<{
     name: string;
@@ -117,21 +118,6 @@ const Cart = () => {
       notes: watch("notes") || "",
     });
   }, [fullName, phoneNumber, address, city, watch]);
-
-  // Fetch branches from API on mount
-  useEffect(() => {
-    const fetchBranches = async () => {
-      try {
-        const response = await fetch("http://localhost:3001/api/store");
-        if (!response.ok) return;
-        const data = await response.json();
-        if (Array.isArray(data.branches)) {
-          setBranches(data.branches);
-        }
-      } catch {}
-    };
-    fetchBranches();
-  }, []);
 
   // اربط cart مع المنتجات
   const cartWithProducts = cart
