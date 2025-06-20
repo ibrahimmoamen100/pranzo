@@ -164,7 +164,10 @@
     "days": "days",
     "hours": "hours",
     "minutes": "minutes",
-    "seconds": "seconds"
+    "seconds": "seconds",
+    "showing": "Showing",
+    "of": "of",
+    "products": "products"
   },
   "hero": {
     "title1": "Welcome to Our Store",
