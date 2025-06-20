@@ -128,7 +128,8 @@
     "error": "Error",
     "success": "Success",
     "warning": "Warning",
-    "info": "Info"
+    "info": "Info",
+    "close": "Close"
   },
   "products": {
     "title": "Products",
@@ -199,13 +200,13 @@
         "title": "Supporting Emerging Sellers",
         "description": "We provide an opportunity for emerging sellers to reach their customers without any additional fees"
       },
-      "affordable": {
-        "title": "Affordable Prices",
-        "description": "We ensure that prices are suitable for everyone to facilitate shopping"
+      "quality": {
+        "title": "High Quality",
+        "description": "We ensure high-quality products at reasonable prices for everyone"
       },
       "community": {
-        "title": "Cooperative Community",
-        "description": "We encourage cooperation between sellers and buyers to create a successful and thriving community"
+        "title": "Community",
+        "description": "We believe that cooperation brings prosperity to all"
       }
     },
     "team": {
@@ -332,5 +333,104 @@
     "brandsSubtitle": "Shop from our trusted brands",
     "suppliers": "Suppliers",
     "suppliersSubtitle": "Shop from our trusted suppliers"
+  },
+  "admin": {
+    "dashboard": "Dashboard",
+    "orders": "Manage Orders",
+    "analytics": "Visitor Analytics",
+    "exportStore": "Export Store Data",
+    "branches": {
+      "title": "Add New Branch",
+      "list": "Branches List",
+      "noBranches": "No branches added yet",
+      "form": {
+        "name": "Branch Name",
+        "address": "Branch Address",
+        "phone": "Branch Phone",
+        "openTime": "Opening Time",
+        "closeTime": "Closing Time",
+        "addBranch": "Add Branch"
+      },
+      "table": {
+        "name": "Branch Name",
+        "address": "Address",
+        "phone": "Phone",
+        "openTime": "Opening Time",
+        "closeTime": "Closing Time",
+        "actions": "Actions"
+      },
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "confirmDelete": "Are you sure you want to delete this branch?",
+        "cancel": "Cancel",
+        "save": "Save"
+      }
+    }
+  },
+  "analytics": {
+    "title": "Visitor Analytics",
+    "description": "Comprehensive analysis of website visitors and their activity",
+    "loading": "Loading analytics...",
+    "noData": "No data available",
+    "timeFilters": {
+      "all": "All Time",
+      "today": "Today",
+      "week": "This Week",
+      "month": "This Month"
+    },
+    "stats": {
+      "totalVisitors": "Total Visitors",
+      "uniqueVisitors": "Unique Visitors",
+      "totalPageViews": "Page Views",
+      "averageSessionDuration": "Avg. Session Duration",
+      "newVisitors": "New Visitors",
+      "returningVisitors": "Returning Visitors",
+      "sessions": "Unique Sessions",
+      "totalViews": "Total Views",
+      "perVisitor": "per visitor"
+    },
+    "tabs": {
+      "pages": "Most Visited Pages",
+      "daily": "Daily Visitors",
+      "visitors": "Visitor Details"
+    },
+    "pages": {
+      "title": "Most Visited Pages",
+      "description": "The most popular pages among visitors",
+      "page": "Page",
+      "views": "Views",
+      "percentage": "Percentage",
+      "homepage": "Homepage"
+    },
+    "daily": {
+      "title": "Visitors in the Last Week",
+      "description": "Number of visitors for each day of the last 7 days"
+    },
+    "visitors": {
+      "title": "Analytics Summary",
+      "description": "Overview of website performance",
+      "bounceRate": "Bounce Rate",
+      "avgPagesPerSession": "Avg. Pages per Session",
+      "peakHour": "Peak Activity Hour",
+      "peakDay": "Peak Activity Day"
+    },
+    "charts": {
+      "visitorsByHour": "Visitors by Hour",
+      "newVsReturning": "New vs Returning Visitors"
+    },
+    "metrics": {
+      "totalProducts": "Total Products",
+      "totalCategories": "Categories",
+      "totalSuppliers": "Suppliers",
+      "activeOffers": "Active Offers",
+      "archivedProducts": "Archived Products"
+    },
+    "filters": {
+      "title": "Filter Products",
+      "dateFilter": "Filter by Date",
+      "customRange": "Custom Date Range",
+      "selectDateRange": "Select Date Range"
+    }
   }
 }

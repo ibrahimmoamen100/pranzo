@@ -8,11 +8,14 @@ import { createPortal } from "react-dom";
 import { Suspense, lazy, useEffect } from "react";
 import "./i18n/config";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { VisitorTracker } from "./components/VisitorTracker";
 import { useStore } from "./store/useStore";
 
 // Lazy load pages
 const Index = lazy(() => import("./pages/Index"));
 const Admin = lazy(() => import("./pages/Admin"));
+const Orders = lazy(() => import("./pages/admin/Orders"));
+const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Cart = lazy(() => import("./pages/Cart"));
 const Products = lazy(() => import("./pages/Products"));
 const Locations = lazy(() => import("./pages/Locations"));
@@ -63,10 +66,13 @@ const App = () => (
         <BrowserRouter>
           <DataLoader />
           <ScrollToTop />
+          <VisitorTracker />
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/admin/orders" element={<Orders />} />
+              <Route path="/admin/analytics" element={<Analytics />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/products" element={<Products />} />
               <Route path="/products/:id" element={<ProductDetails />} />

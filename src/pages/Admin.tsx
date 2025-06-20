@@ -24,8 +24,12 @@ import {
   Filter,
   Pencil,
   Trash2,
+  ShoppingCart,
+  BarChart3,
 } from "lucide-react";
 import { Helmet } from "react-helmet-async";
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Select,
   SelectContent,
@@ -68,6 +72,7 @@ interface BranchForm {
 }
 
 const Admin = () => {
+  const { t } = useTranslation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -465,22 +470,36 @@ const Admin = () => {
       <main className="max-w-[90%] mx-auto py-8">
         <div className="mx-auto">
           <div className="mb-8 flex items-center justify-between">
-            <h1 className="text-3xl font-bold">لوحة التحكم</h1>
-            <Button
-              onClick={handleExport}
-              className="gap-2"
-              aria-label="تصدير بيانات المتجر"
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-              تصدير بيانات المتجر
-            </Button>
+            <h1 className="text-3xl font-bold">{t("admin.dashboard")}</h1>
+            <div className="flex gap-2">
+              <Link to="/admin/orders">
+                <Button variant="outline" className="gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  {t("admin.orders")}
+                </Button>
+              </Link>
+              <Link to="/admin/analytics">
+                <Button variant="outline" className="gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  {t("admin.analytics")}
+                </Button>
+              </Link>
+              <Button
+                onClick={handleExport}
+                className="gap-2"
+                aria-label={t("admin.exportStore")}
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                {t("admin.exportStore")}
+              </Button>
+            </div>
           </div>
 
           {/* Statistics Section */}
           <div
             className="grid gap-4 md:grid-cols-6 mb-8"
             role="region"
-            aria-label="إحصائيات المتجر"
+            aria-label={t("analytics.title")}
           >
             <div className="bg-card rounded-lg border p-4 shadow-sm">
               <div className="flex items-center gap-2">
@@ -488,7 +507,9 @@ const Admin = () => {
                   className="h-5 w-5 text-muted-foreground"
                   aria-hidden="true"
                 />
-                <h3 className="text-sm font-medium">إجمالي المنتجات</h3>
+                <h3 className="text-sm font-medium">
+                  {t("analytics.metrics.totalProducts")}
+                </h3>
               </div>
               <p className="text-2xl font-bold mt-2">
                 {statistics.totalProducts}
@@ -500,7 +521,9 @@ const Admin = () => {
                   className="h-5 w-5 text-muted-foreground"
                   aria-hidden="true"
                 />
-                <h3 className="text-sm font-medium">التصنيفات</h3>
+                <h3 className="text-sm font-medium">
+                  {t("analytics.metrics.totalCategories")}
+                </h3>
               </div>
               <p className="text-2xl font-bold mt-2">
                 {statistics.totalCategories}
@@ -512,7 +535,9 @@ const Admin = () => {
                   className="h-5 w-5 text-muted-foreground"
                   aria-hidden="true"
                 />
-                <h3 className="text-sm font-medium">الموردين</h3>
+                <h3 className="text-sm font-medium">
+                  {t("analytics.metrics.totalSuppliers")}
+                </h3>
               </div>
               <p className="text-2xl font-bold mt-2">
                 {statistics.totalSuppliers}
@@ -524,7 +549,9 @@ const Admin = () => {
                   className="h-5 w-5 text-muted-foreground"
                   aria-hidden="true"
                 />
-                <h3 className="text-sm font-medium">العروض النشطة</h3>
+                <h3 className="text-sm font-medium">
+                  {t("analytics.metrics.activeOffers")}
+                </h3>
               </div>
               <p className="text-2xl font-bold mt-2">
                 {statistics.productsWithOffers}
@@ -536,7 +563,9 @@ const Admin = () => {
                   className="h-5 w-5 text-muted-foreground"
                   aria-hidden="true"
                 />
-                <h3 className="text-sm font-medium">المنتجات المؤرشفة</h3>
+                <h3 className="text-sm font-medium">
+                  {t("analytics.metrics.archivedProducts")}
+                </h3>
               </div>
               <p className="text-2xl font-bold mt-2">
                 {statistics.archivedProducts}
@@ -558,7 +587,9 @@ const Admin = () => {
                   <div className="flex items-center justify-between cursor-pointer">
                     <div className="flex items-center gap-2">
                       <Filter className="h-5 w-5 text-primary" />
-                      <h3 className="text-xl font-bold">تصفية المنتجات</h3>
+                      <h3 className="text-xl font-bold">
+                        {t("analytics.filters.title")}
+                      </h3>
                     </div>
                     <Button variant="ghost" size="sm" className="w-9 p-0">
                       <ChevronDown
@@ -592,7 +623,9 @@ const Admin = () => {
                   }}
                 >
                   <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="فلتر حسب التاريخ" />
+                    <SelectValue
+                      placeholder={t("analytics.filters.dateFilter")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">الكل</SelectItem>
@@ -600,7 +633,9 @@ const Admin = () => {
                     <SelectItem value="week">الأسبوع</SelectItem>
                     <SelectItem value="month">الشهر</SelectItem>
                     <SelectItem value="year">السنة</SelectItem>
-                    <SelectItem value="custom">تحديد نطاق تاريخ</SelectItem>
+                    <SelectItem value="custom">
+                      {t("analytics.filters.customRange")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {dateFilter === "custom" && (
@@ -624,7 +659,7 @@ const Admin = () => {
                             format(dateRange.from, "PPP", { locale: ar })
                           )
                         ) : (
-                          <span>اختر نطاق التاريخ</span>
+                          <span>{t("analytics.filters.selectDateRange")}</span>
                         )}
                       </Button>
                     </PopoverTrigger>
@@ -663,48 +698,48 @@ const Admin = () => {
       <Card className="p-6 mb-8 max-w-[90%] mx-auto shadow-lg border border-primary/30 bg-white rounded-2xl">
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-primary">
           <Building2 className="inline-block w-6 h-6 text-primary" />
-          إضافة فرع جديد
+          {t("admin.branches.title")}
         </h2>
         <form onSubmit={handleBranchSubmit} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block mb-1 font-semibold text-gray-700">
-                اسم الفرع
+                {t("admin.branches.form.name")}
               </label>
               <Input
                 value={branchForm.name}
                 onChange={(e) =>
                   setBranchForm({ ...branchForm, name: e.target.value })
                 }
-                placeholder="اسم الفرع"
+                placeholder={t("admin.branches.form.name")}
                 required
                 className="rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
               />
             </div>
             <div>
               <label className="block mb-1 font-semibold text-gray-700">
-                عنوان الفرع
+                {t("admin.branches.form.address")}
               </label>
               <Input
                 value={branchForm.address}
                 onChange={(e) =>
                   setBranchForm({ ...branchForm, address: e.target.value })
                 }
-                placeholder="عنوان الفرع"
+                placeholder={t("admin.branches.form.address")}
                 required
                 className="rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
               />
             </div>
             <div>
               <label className="block mb-1 font-semibold text-gray-700">
-                رقم الفرع
+                {t("admin.branches.form.phone")}
               </label>
               <Input
                 value={branchForm.phone}
                 onChange={(e) =>
                   setBranchForm({ ...branchForm, phone: e.target.value })
                 }
-                placeholder="رقم الفرع"
+                placeholder={t("admin.branches.form.phone")}
                 required
                 className="rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
               />
@@ -712,7 +747,7 @@ const Admin = () => {
             <div className="flex gap-4">
               <div className="flex-1">
                 <label className="block mb-1 font-semibold text-gray-700">
-                  موعد الفتح
+                  {t("admin.branches.form.openTime")}
                 </label>
                 <Input
                   type="time"
@@ -720,7 +755,7 @@ const Admin = () => {
                   onChange={(e) =>
                     setBranchForm({ ...branchForm, openTime: e.target.value })
                   }
-                  placeholder="موعد الفتح"
+                  placeholder={t("admin.branches.form.openTime")}
                   required
                   step="60"
                   className="rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
@@ -728,7 +763,7 @@ const Admin = () => {
               </div>
               <div className="flex-1">
                 <label className="block mb-1 font-semibold text-gray-700">
-                  موعد الغلق
+                  {t("admin.branches.form.closeTime")}
                 </label>
                 <Input
                   type="time"
@@ -736,7 +771,7 @@ const Admin = () => {
                   onChange={(e) =>
                     setBranchForm({ ...branchForm, closeTime: e.target.value })
                   }
-                  placeholder="موعد الغلق"
+                  placeholder={t("admin.branches.form.closeTime")}
                   required
                   step="60"
                   className="rounded-lg border-gray-300 focus:border-primary focus:ring-primary"
@@ -749,7 +784,7 @@ const Admin = () => {
             className="w-full py-3 text-lg font-bold rounded-xl bg-primary hover:bg-primary/90 transition"
           >
             <Building2 className="inline-block w-5 h-5 mr-2" />
-            إضافة الفرع
+            {t("admin.branches.form.addBranch")}
           </Button>
         </form>
       </Card>
@@ -758,18 +793,30 @@ const Admin = () => {
       <div className="max-w-[90%] mx-auto mb-12">
         <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-primary">
           <Building2 className="inline-block w-5 h-5 text-primary" />
-          قائمة الفروع
+          {t("admin.branches.list")}
         </h3>
         <div className="overflow-x-auto rounded-2xl shadow border border-primary/20 bg-white">
           <table className="min-w-full divide-y divide-gray-200 text-center">
             <thead className="bg-primary/10">
               <tr>
-                <th className="px-4 py-3 font-bold text-primary">اسم الفرع</th>
-                <th className="px-4 py-3 font-bold text-primary">العنوان</th>
-                <th className="px-4 py-3 font-bold text-primary">رقم الفرع</th>
-                <th className="px-4 py-3 font-bold text-primary">موعد الفتح</th>
-                <th className="px-4 py-3 font-bold text-primary">موعد الغلق</th>
-                <th className="px-4 py-3 font-bold text-primary">إجراءات</th>
+                <th className="px-4 py-3 font-bold text-primary">
+                  {t("admin.branches.table.name")}
+                </th>
+                <th className="px-4 py-3 font-bold text-primary">
+                  {t("admin.branches.table.address")}
+                </th>
+                <th className="px-4 py-3 font-bold text-primary">
+                  {t("admin.branches.table.phone")}
+                </th>
+                <th className="px-4 py-3 font-bold text-primary">
+                  {t("admin.branches.table.openTime")}
+                </th>
+                <th className="px-4 py-3 font-bold text-primary">
+                  {t("admin.branches.table.closeTime")}
+                </th>
+                <th className="px-4 py-3 font-bold text-primary">
+                  {t("admin.branches.table.actions")}
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -779,7 +826,7 @@ const Admin = () => {
                     colSpan={6}
                     className="py-8 text-muted-foreground text-lg"
                   >
-                    لا يوجد فروع مضافة بعد
+                    {t("admin.branches.noBranches")}
                   </td>
                 </tr>
               ) : (
@@ -817,7 +864,7 @@ const Admin = () => {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>تعديل بيانات الفرع</DialogTitle>
+            <DialogTitle>{t("admin.branches.actions.edit")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEditBranchSubmit} className="space-y-4">
             <Input
@@ -827,7 +874,7 @@ const Admin = () => {
                   f ? { ...f, name: e.target.value } : f
                 )
               }
-              placeholder="اسم الفرع"
+              placeholder={t("admin.branches.form.name")}
               required
             />
             <Input
@@ -837,7 +884,7 @@ const Admin = () => {
                   f ? { ...f, address: e.target.value } : f
                 )
               }
-              placeholder="عنوان الفرع"
+              placeholder={t("admin.branches.form.address")}
               required
             />
             <Input
@@ -847,7 +894,7 @@ const Admin = () => {
                   f ? { ...f, phone: e.target.value } : f
                 )
               }
-              placeholder="رقم الفرع"
+              placeholder={t("admin.branches.form.phone")}
               required
             />
             <div className="flex gap-4">
@@ -873,9 +920,14 @@ const Admin = () => {
               />
             </div>
             <DialogFooter>
-              <Button type="submit" className="w-full">
-                حفظ التعديلات
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+              >
+                {t("admin.branches.actions.cancel")}
               </Button>
+              <Button type="submit">{t("admin.branches.actions.save")}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -884,18 +936,18 @@ const Admin = () => {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>تأكيد حذف الفرع</DialogTitle>
+            <DialogTitle>{t("admin.branches.actions.delete")}</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            هل أنت متأكد أنك تريد حذف هذا الفرع؟ لا يمكن التراجع عن هذا الإجراء.
-          </div>
+          <p>{t("admin.branches.actions.confirmDelete")}</p>
           <DialogFooter>
             <Button
-              variant="destructive"
-              onClick={confirmDeleteBranch}
-              className="w-full"
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
             >
-              تأكيد الحذف
+              {t("admin.branches.actions.cancel")}
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteBranch}>
+              {t("admin.branches.actions.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

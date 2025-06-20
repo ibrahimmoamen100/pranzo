@@ -41,6 +41,8 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import storeData from "@/data/store.json";
+import { localOrderService } from "@/services/localOrderService";
+import { OrderFormData } from "@/types/order";
 
 interface DeliveryFormData {
   fullName: string;
@@ -83,6 +85,7 @@ const Cart = () => {
     name: string;
     phone: string;
   } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     register,
@@ -180,14 +183,31 @@ const Cart = () => {
     toast.success(t("cart.cartCleared"));
   };
 
-  const onSubmit = (data: DeliveryFormData) => {
+  const onSubmit = async (data: DeliveryFormData) => {
     if (!selectedBranch) {
       toast.error("يرجى اختيار الفرع أولاً");
       return;
     }
-    // بناء رسالة الطلب
-    const orderDetails = cartWithProducts
-      .map((item, idx) => {
+
+    if (cartWithProducts.length === 0) {
+      toast.error("السلة فارغة");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // إرسال الطلب إلى النظام المحلي
+      const orderItems = cartWithProducts.map((item) => ({
+        productId: item.productId,
+        productName: item.product!.name,
+        quantity: item.quantity,
+        price: item.product!.price,
+        selectedSize: item.selectedSize,
+        selectedExtra: item.selectedExtra,
+      }));
+
+      const totalAmount = cartWithProducts.reduce((total, item) => {
         let sizePrice = 0;
         let extraPrice = 0;
         if (item.selectedSize && item.product?.sizesWithPrices) {
@@ -207,69 +227,34 @@ const Cart = () => {
             ? item.product.price -
               (item.product.price * item.product.discountPercentage) / 100
             : item.product.price;
-        const totalPrice = (basePrice + sizePrice + extraPrice) * item.quantity;
-        return (
-          `━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-          `📌 *${item.product.name}*\n` +
-          `🆔 رقم المنتج: ${item.product.id}\n` +
-          (item.selectedSize ? `📏 الحجم: ${item.selectedSize}\n` : "") +
-          (item.selectedExtra ? `➕ إضافة: ${item.selectedExtra}\n` : "") +
-          `🔢 الكمية: ${item.quantity}\n` +
-          `💰 السعر: ${(
-            basePrice +
-            sizePrice +
-            extraPrice
-          ).toLocaleString()} EGP\n` +
-          `💵 المجموع: ${totalPrice.toLocaleString()} EGP`
-        );
-      })
-      .join("\n");
+        return total + (basePrice + sizePrice + extraPrice) * item.quantity;
+      }, 0);
 
-    const message =
-      `🛍️ *طلب جديد*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `👤 *معلومات العميل:*\n` +
-      `${data.fullName ? `الاسم: ${data.fullName}\n` : ""}` +
-      `${data.phoneNumber ? `رقم الهاتف: ${data.phoneNumber}\n` : ""}` +
-      `${data.address ? `العنوان: ${data.address}\n` : ""}` +
-      `${data.city ? `المدينة: ${data.city}\n` : ""}` +
-      `${data.notes ? `\n📝 *ملاحظات:*\n${data.notes}\n` : ""}` +
-      `\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `📦 *تفاصيل الطلب:*\n` +
-      `${orderDetails}\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `💰 *المجموع:* ${cartWithProducts
-        .reduce((total, item) => {
-          let sizePrice = 0;
-          let extraPrice = 0;
-          if (item.selectedSize && item.product?.sizesWithPrices) {
-            const foundSize = item.product.sizesWithPrices.find(
-              (s) => s.size === item.selectedSize
-            );
-            if (foundSize) sizePrice = Number(foundSize.price || 0);
-          }
-          if (item.selectedExtra && item.product?.extras) {
-            const foundExtra = item.product.extras.find(
-              (e) => e.name === item.selectedExtra
-            );
-            if (foundExtra) extraPrice = Number(foundExtra.price || 0);
-          }
-          const basePrice =
-            item.product?.specialOffer && item.product?.discountPercentage
-              ? item.product.price -
-                (item.product.price * item.product.discountPercentage) / 100
-              : item.product.price;
-          return total + (basePrice + sizePrice + extraPrice) * item.quantity;
-        }, 0)
-        .toLocaleString()} EGP\n\n` +
-      `⏰ *تاريخ الطلب:* ${new Date().toLocaleString("ar-EG")}\n` +
-      `🏪 *اسم الفرع:* ${selectedBranch.name}`;
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${selectedBranch.phone.replace(
-      /^0/,
-      "20"
-    )}?text=${encodedMessage}`;
-    window.open(whatsappUrl, "_blank");
+      const orderData = {
+        customerName: data.fullName,
+        customerPhone: data.phoneNumber,
+        customerAddress: `${data.address}, ${data.city}`,
+        selectedBranch: selectedBranch.name,
+        items: orderItems,
+        totalAmount: totalAmount,
+        status: "pending" as const,
+        notes: data.notes,
+      };
+
+      await localOrderService.createOrder(orderData);
+
+      // تفريغ السلة بعد إرسال الطلب
+      clearCart();
+
+      toast.success("تم إرسال طلبك بنجاح! سنتواصل معك قريباً");
+
+      // إعادة توجيه للصفحة الرئيسية
+      navigate("/");
+    } catch (error) {
+      toast.error("حدث خطأ في إرسال الطلب. حاول مرة أخرى");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const navigate = useNavigate();
@@ -735,10 +720,12 @@ const Cart = () => {
                   <Button
                     type="submit"
                     className="w-full flex gap-2 items-center"
-                    disabled={!isFormValid || !selectedBranch}
+                    disabled={!isFormValid || !selectedBranch || isSubmitting}
                   >
                     <FaWhatsapp className="w-4 h-4" />
-                    إرسال الطلب للفرع المختار
+                    {isSubmitting
+                      ? "جاري الإرسال..."
+                      : "إرسال الطلب للفرع المختار"}
                   </Button>
                 </form>
               </div>
