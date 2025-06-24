@@ -196,70 +196,61 @@ const Cart = () => {
 
     setIsSubmitting(true);
 
-    try {
-      // إرسال الطلب إلى النظام المركزي (Firebase) مع مهلة زمنية
-      const orderItems = cartWithProducts.map((item) => ({
-        productId: item.productId,
-        productName: item.product!.name,
-        quantity: item.quantity,
-        price: item.product!.price,
-        selectedSize: item.selectedSize,
-        selectedExtra: item.selectedExtra,
-      }));
+    // تجهيز بيانات الطلب
+    const orderItems = cartWithProducts.map((item) => ({
+      productId: item.productId,
+      productName: item.product!.name,
+      quantity: item.quantity,
+      price: item.product!.price,
+      selectedSize: item.selectedSize,
+      selectedExtra: item.selectedExtra,
+    }));
 
-      const totalAmount = cartWithProducts.reduce((total, item) => {
-        let sizePrice = 0;
-        let extraPrice = 0;
-        if (item.selectedSize && item.product?.sizesWithPrices) {
-          const foundSize = item.product.sizesWithPrices.find(
-            (s) => s.size === item.selectedSize
-          );
-          if (foundSize) sizePrice = Number(foundSize.price || 0);
-        }
-        if (item.selectedExtra && item.product?.extras) {
-          const foundExtra = item.product.extras.find(
-            (e) => e.name === item.selectedExtra
-          );
-          if (foundExtra) extraPrice = Number(foundExtra.price || 0);
-        }
-        const basePrice =
-          item.product?.specialOffer && item.product?.discountPercentage
-            ? item.product.price -
-              (item.product.price * item.product.discountPercentage) / 100
-            : item.product.price;
-        return total + (basePrice + sizePrice + extraPrice) * item.quantity;
-      }, 0);
-
-      const orderData = {
-        customerName: data.fullName,
-        customerPhone: data.phoneNumber,
-        customerAddress: `${data.address}, ${data.city}`,
-        selectedBranch: selectedBranch.name,
-        items: orderItems,
-        totalAmount: totalAmount,
-        status: "pending" as const,
-        notes: data.notes,
-        // لا ترسل تواريخ هنا، سيتم توليدها في السيرفر
-      };
-
-      // مهلة زمنية 10 ثواني
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 10000)
-      );
-      await Promise.race([
-        orderService.createOrder(orderData),
-        timeoutPromise,
-      ]);
-
-      clearCart();
-      toast.success("تم إرسال طلبك بنجاح! سنتواصل معك قريباً");
-      navigate("/");
-    } catch (error: any) {
-      if (error && error.message === "timeout") {
-        toast.error("فشل في إرسال الطلب بسبب بطء الاتصال. حاول مرة أخرى.");
-      } else {
-        toast.error("حدث خطأ في إرسال الطلب. حاول مرة أخرى");
+    const totalAmount = cartWithProducts.reduce((total, item) => {
+      let sizePrice = 0;
+      let extraPrice = 0;
+      if (item.selectedSize && item.product?.sizesWithPrices) {
+        const foundSize = item.product.sizesWithPrices.find(
+          (s) => s.size === item.selectedSize
+        );
+        if (foundSize) sizePrice = Number(foundSize.price || 0);
       }
+      if (item.selectedExtra && item.product?.extras) {
+        const foundExtra = item.product.extras.find(
+          (e) => e.name === item.selectedExtra
+        );
+        if (foundExtra) extraPrice = Number(foundExtra.price || 0);
+      }
+      const basePrice =
+        item.product?.specialOffer && item.product?.discountPercentage
+          ? item.product.price -
+            (item.product.price * item.product.discountPercentage) / 100
+          : item.product.price;
+      return total + (basePrice + sizePrice + extraPrice) * item.quantity;
+    }, 0);
+
+    const orderData = {
+      customerName: data.fullName,
+      customerPhone: data.phoneNumber,
+      customerAddress: `${data.address}, ${data.city}`,
+      selectedBranch: selectedBranch.name,
+      items: orderItems,
+      totalAmount: totalAmount,
+      status: "pending" as const,
+      notes: data.notes,
+      // لا ترسل تواريخ هنا، سيتم توليدها في السيرفر
+    };
+
+    // --- الحفظ المتفائل ---
+    clearCart();
+    toast.success("تم إرسال طلبك بنجاح! سنتواصل معك قريباً");
+    navigate("/");
+
+    // أرسل الطلب إلى Firebase في الخلفية
+    try {
+      await orderService.createOrder(orderData);
+    } catch (error: any) {
+      toast.error("حدث خطأ أثناء حفظ الطلب في النظام. يرجى المحاولة مرة أخرى أو التواصل مع الدعم.");
     } finally {
       setIsSubmitting(false);
     }

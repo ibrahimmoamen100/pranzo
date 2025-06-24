@@ -40,22 +40,56 @@ import {
   MapPin,
 } from "lucide-react";
 
+const PAGE_SIZE = 20;
+
 const Orders = () => {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [timeFilter, setTimeFilter] = useState<string>("all");
+  const [lastDoc, setLastDoc] = useState<any>(null);
+  const [pageStack, setPageStack] = useState<any[]>([]);
+  const [isLastPage, setIsLastPage] = useState(false);
 
+  // جلب أول صفحة من الطلبات
   useEffect(() => {
-    // الاشتراك في التحديثات المباشرة
-    const unsubscribe = orderService.subscribeToOrders((newOrders) => {
-      setOrders(newOrders);
+    setLoading(true);
+    setPageStack([]);
+    setLastDoc(null);
+    orderService.getOrdersPaginated({ pageSize: PAGE_SIZE }).then(({ orders, lastDoc }) => {
+      setOrders(orders);
+      setLastDoc(lastDoc);
+      setIsLastPage(!lastDoc);
       setLoading(false);
     });
-
-    return () => unsubscribe();
   }, []);
+
+  // جلب الصفحة التالية
+  const fetchNextPage = async () => {
+    if (!lastDoc) return;
+    setLoading(true);
+    const { orders: nextOrders, lastDoc: nextLastDoc } = await orderService.getOrdersPaginated({ pageSize: PAGE_SIZE, lastDoc });
+    setPageStack((prev) => [...prev, lastDoc]);
+    setOrders(nextOrders);
+    setLastDoc(nextLastDoc);
+    setIsLastPage(!nextLastDoc);
+    setLoading(false);
+  };
+
+  // جلب الصفحة السابقة
+  const fetchPrevPage = async () => {
+    if (pageStack.length === 0) return;
+    setLoading(true);
+    const prevStack = [...pageStack];
+    const prevLastDoc = prevStack.pop();
+    const { orders: prevOrders, lastDoc: prevDoc } = await orderService.getOrdersPaginated({ pageSize: PAGE_SIZE, lastDoc: prevStack[prevStack.length - 1] || null });
+    setOrders(prevOrders);
+    setLastDoc(prevDoc);
+    setPageStack(prevStack);
+    setIsLastPage(false);
+    setLoading(false);
+  };
 
   // تحليل البيانات
   const analytics = useMemo(() => {
@@ -647,6 +681,23 @@ const Orders = () => {
                     ))}
                   </TableBody>
                 </Table>
+                {/* أزرار التنقل بين الصفحات */}
+                <div className="flex justify-between items-center mt-4">
+                  <button
+                    className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+                    onClick={fetchPrevPage}
+                    disabled={pageStack.length === 0 || loading}
+                  >
+                    الصفحة السابقة
+                  </button>
+                  <button
+                    className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+                    onClick={fetchNextPage}
+                    disabled={isLastPage || loading}
+                  >
+                    الصفحة التالية
+                  </button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

@@ -10,6 +10,9 @@ import {
   orderBy,
   query,
   onSnapshot,
+  deleteDoc,
+  startAfter,
+  limit as firestoreLimit,
 } from "firebase/firestore";
 import { Order } from "@/types/order";
 
@@ -29,54 +32,129 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const analytics = getAnalytics(app);
 
+// دالة اختبار الاتصال بـ Firebase
+export const testFirebaseConnection = async () => {
+  try {
+    const testDoc = await addDoc(collection(db, "test"), {
+      test: true,
+      timestamp: new Date()
+    });
+    await deleteDoc(doc(db, "test", testDoc.id));
+    return true;
+  } catch (error) {
+    console.error("Firebase connection test failed:", error);
+    return false;
+  }
+};
+
 // دوال إدارة الطلبات
 export const orderService = {
-  // إضافة طلب جديد
+  // إضافة طلب جديد مع معالجة محسنة للأخطاء
   async createOrder(
     orderData: Omit<Order, "id" | "createdAt" | "updatedAt">
   ): Promise<string> {
-    const orderWithTimestamps = {
-      ...orderData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    try {
+      // اختبار الاتصال أولاً
+      const isConnected = await testFirebaseConnection();
+      if (!isConnected) {
+        throw new Error("No connection to Firebase");
+      }
 
-    const docRef = await addDoc(collection(db, "orders"), orderWithTimestamps);
-    return docRef.id;
+      const orderWithTimestamps = {
+        ...orderData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const docRef = await addDoc(collection(db, "orders"), orderWithTimestamps);
+      return docRef.id;
+    } catch (error) {
+      console.error("Error creating order:", error);
+      throw error;
+    }
   },
 
-  // جلب جميع الطلبات
+  // جلب جميع الطلبات مع معالجة محسنة للأخطاء
   async getOrders(): Promise<Order[]> {
-    const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
-    const querySnapshot = await getDocs(q);
+    try {
+      const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(q);
 
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Order[];
+      return querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Order[];
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      throw error;
+    }
   },
 
-  // تحديث حالة الطلب
+  // تحديث حالة الطلب مع معالجة محسنة للأخطاء
   async updateOrderStatus(
     orderId: string,
     status: Order["status"]
   ): Promise<void> {
-    const orderRef = doc(db, "orders", orderId);
-    await updateDoc(orderRef, {
-      status,
-      updatedAt: new Date(),
-    });
+    try {
+      const orderRef = doc(db, "orders", orderId);
+      await updateDoc(orderRef, {
+        status,
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      throw error;
+    }
   },
 
-  // الاستماع للتغييرات في الوقت الفعلي
+  // الاستماع للتغييرات في الوقت الفعلي مع معالجة محسنة للأخطاء
   subscribeToOrders(callback: (orders: Order[]) => void) {
-    const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
-    return onSnapshot(q, (querySnapshot) => {
-      const orders = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Order[];
-      callback(orders);
-    });
+    try {
+      const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+      return onSnapshot(q, (querySnapshot) => {
+        const orders = querySnapshot.docs.map((doc) => {
+          const data = doc.data() as any;
+          return { ...data, id: doc.id } as Order;
+        });
+        callback(orders);
+      }, (error) => {
+        console.error("Error in orders subscription:", error);
+        callback([]);
+      });
+    } catch (error) {
+      console.error("Error setting up orders subscription:", error);
+      return () => {};
+    }
+  },
+
+  // جلب الطلبات مع دعم pagination
+  async getOrdersPaginated({ pageSize = 20, lastDoc = null }: { pageSize?: number; lastDoc?: any }) {
+    try {
+      let q;
+      if (lastDoc) {
+        q = query(
+          collection(db, "orders"),
+          orderBy("createdAt", "desc"),
+          startAfter(lastDoc),
+          firestoreLimit(pageSize)
+        );
+      } else {
+        q = query(
+          collection(db, "orders"),
+          orderBy("createdAt", "desc"),
+          firestoreLimit(pageSize)
+        );
+      }
+      const querySnapshot = await getDocs(q);
+      const orders = querySnapshot.docs.map((doc) => {
+        const data = doc.data() as any;
+        return { ...data, id: doc.id } as Order;
+      });
+      const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+      return { orders, lastDoc: lastVisible };
+    } catch (error) {
+      console.error("Error fetching paginated orders:", error);
+      throw error;
+    }
   },
 };
