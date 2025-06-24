@@ -197,7 +197,7 @@ const Cart = () => {
     setIsSubmitting(true);
 
     try {
-      // إرسال الطلب إلى النظام المحلي
+      // إرسال الطلب إلى النظام المركزي (Firebase) مع مهلة زمنية
       const orderItems = cartWithProducts.map((item) => ({
         productId: item.productId,
         productName: item.product!.name,
@@ -239,19 +239,27 @@ const Cart = () => {
         totalAmount: totalAmount,
         status: "pending" as const,
         notes: data.notes,
+        // لا ترسل تواريخ هنا، سيتم توليدها في السيرفر
       };
 
-      await orderService.createOrder(orderData);
+      // مهلة زمنية 10 ثواني
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 10000)
+      );
+      await Promise.race([
+        orderService.createOrder(orderData),
+        timeoutPromise,
+      ]);
 
-      // تفريغ السلة بعد إرسال الطلب
       clearCart();
-
       toast.success("تم إرسال طلبك بنجاح! سنتواصل معك قريباً");
-
-      // إعادة توجيه للصفحة الرئيسية
       navigate("/");
-    } catch (error) {
-      toast.error("حدث خطأ في إرسال الطلب. حاول مرة أخرى");
+    } catch (error: any) {
+      if (error && error.message === "timeout") {
+        toast.error("فشل في إرسال الطلب بسبب بطء الاتصال. حاول مرة أخرى.");
+      } else {
+        toast.error("حدث خطأ في إرسال الطلب. حاول مرة أخرى");
+      }
     } finally {
       setIsSubmitting(false);
     }
