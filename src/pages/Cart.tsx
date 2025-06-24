@@ -196,8 +196,19 @@ const Cart = () => {
 
     setIsSubmitting(true);
 
+    // دالة لتنظيف البيانات من القيم undefined
+    const cleanData = (obj: any) => {
+      const cleaned: any = {};
+      Object.keys(obj).forEach(key => {
+        if (obj[key] !== undefined && obj[key] !== null) {
+          cleaned[key] = obj[key];
+        }
+      });
+      return cleaned;
+    };
+
     // تجهيز بيانات الطلب
-    const orderItems = cartWithProducts.map((item) => ({
+    const orderItems = cartWithProducts.map((item) => cleanData({
       productId: item.productId,
       productName: item.product!.name,
       quantity: item.quantity,
@@ -229,7 +240,7 @@ const Cart = () => {
       return total + (basePrice + sizePrice + extraPrice) * item.quantity;
     }, 0);
 
-    const orderData = {
+    const orderData = cleanData({
       customerName: data.fullName,
       customerPhone: data.phoneNumber,
       customerAddress: `${data.address}, ${data.city}`,
@@ -239,7 +250,7 @@ const Cart = () => {
       status: "pending" as const,
       notes: data.notes,
       // لا ترسل تواريخ هنا، سيتم توليدها في السيرفر
-    };
+    });
 
     // --- الحفظ المتفائل ---
     clearCart();

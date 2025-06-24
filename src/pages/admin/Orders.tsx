@@ -38,6 +38,7 @@ import {
   Calendar,
   Users,
   MapPin,
+  Trash2,
 } from "lucide-react";
 
 const PAGE_SIZE = 20;
@@ -267,6 +268,18 @@ const Orders = () => {
       "السبت",
     ];
     return days[dayIndex];
+  };
+
+  // دالة حذف الطلب
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!window.confirm("هل أنت متأكد أنك تريد حذف هذا الطلب نهائيًا؟")) return;
+    try {
+      await orderService.deleteOrder(orderId);
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      toast.success("تم حذف الطلب بنجاح");
+    } catch (error) {
+      toast.error("حدث خطأ أثناء حذف الطلب. حاول مرة أخرى.");
+    }
   };
 
   if (loading) {
@@ -676,6 +689,13 @@ const Orders = () => {
                               <SelectItem value="cancelled">ملغي</SelectItem>
                             </SelectContent>
                           </Select>
+                          <button
+                            className="ml-2 text-red-600 hover:text-red-800"
+                            title="حذف الطلب"
+                            onClick={() => handleDeleteOrder(order.id)}
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
                         </TableCell>
                       </TableRow>
                     ))}

@@ -32,21 +32,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const analytics = getAnalytics(app);
 
-// دالة اختبار الاتصال بـ Firebase
-export const testFirebaseConnection = async () => {
-  try {
-    const testDoc = await addDoc(collection(db, "test"), {
-      test: true,
-      timestamp: new Date()
-    });
-    await deleteDoc(doc(db, "test", testDoc.id));
-    return true;
-  } catch (error) {
-    console.error("Firebase connection test failed:", error);
-    return false;
-  }
-};
-
 // دوال إدارة الطلبات
 export const orderService = {
   // إضافة طلب جديد مع معالجة محسنة للأخطاء
@@ -54,12 +39,6 @@ export const orderService = {
     orderData: Omit<Order, "id" | "createdAt" | "updatedAt">
   ): Promise<string> {
     try {
-      // اختبار الاتصال أولاً
-      const isConnected = await testFirebaseConnection();
-      if (!isConnected) {
-        throw new Error("No connection to Firebase");
-      }
-
       const orderWithTimestamps = {
         ...orderData,
         createdAt: new Date().toISOString(),
@@ -130,6 +109,7 @@ export const orderService = {
   // جلب الطلبات مع دعم pagination
   async getOrdersPaginated({ pageSize = 20, lastDoc = null }: { pageSize?: number; lastDoc?: any }) {
     try {
+      console.log("Fetching orders from Firebase...");
       let q;
       if (lastDoc) {
         q = query(
@@ -145,15 +125,29 @@ export const orderService = {
           firestoreLimit(pageSize)
         );
       }
+      console.log("Query created, executing...");
       const querySnapshot = await getDocs(q);
+      console.log("Query executed, found", querySnapshot.docs.length, "orders");
       const orders = querySnapshot.docs.map((doc) => {
         const data = doc.data() as any;
         return { ...data, id: doc.id } as Order;
       });
       const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+      console.log("Returning orders:", orders.length);
       return { orders, lastDoc: lastVisible };
     } catch (error) {
       console.error("Error fetching paginated orders:", error);
+      throw error;
+    }
+  },
+
+  // حذف طلب من Firestore
+  async deleteOrder(orderId: string): Promise<void> {
+    try {
+      const orderRef = doc(db, "orders", orderId);
+      await deleteDoc(orderRef);
+    } catch (error) {
+      console.error("Error deleting order:", error);
       throw error;
     }
   },
