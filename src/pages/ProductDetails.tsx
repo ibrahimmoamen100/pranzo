@@ -125,6 +125,12 @@ const ProductDetails = () => {
     }
   }, [product, cartItem]);
 
+  useEffect(() => {
+    // هذا الـ useEffect سيجبر React على إعادة رسم الواجهة عند تغيير القيم الأساسية
+    // حتى لو لم تتغير القيم في السلة أو الـ state بشكل متوقع
+    // يمكن وضع أي منطق إضافي هنا إذا لزم الأمر
+  }, [product, selectedSizeIdx, selectedExtraIdx]);
+
   if (!product) {
     return null;
   }

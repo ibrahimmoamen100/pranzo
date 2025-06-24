@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { localOrderService } from "@/services/localOrderService";
+import { orderService } from "@/services/firebase";
 import { Order } from "@/types/order";
 import { Navbar } from "@/components/Navbar";
 import { Topbar } from "@/components/Topbar";
@@ -49,7 +49,7 @@ const Orders = () => {
 
   useEffect(() => {
     // الاشتراك في التحديثات المباشرة
-    const unsubscribe = localOrderService.subscribeToOrders((newOrders) => {
+    const unsubscribe = orderService.subscribeToOrders((newOrders) => {
       setOrders(newOrders);
       setLoading(false);
     });
@@ -177,7 +177,7 @@ const Orders = () => {
     newStatus: Order["status"]
   ) => {
     try {
-      await localOrderService.updateOrderStatus(orderId, newStatus);
+      await orderService.updateOrderStatus(orderId, newStatus);
       toast.success("تم تحديث حالة الطلب بنجاح");
     } catch (error) {
       toast.error("حدث خطأ في تحديث حالة الطلب");

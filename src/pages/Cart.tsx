@@ -40,9 +40,9 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import storeData from "@/data/store.json";
-import { localOrderService } from "@/services/localOrderService";
+import { orderService } from "@/services/firebase";
 import { OrderFormData } from "@/types/order";
+import storeData from "@/data/store.json";
 
 interface DeliveryFormData {
   fullName: string;
@@ -241,7 +241,7 @@ const Cart = () => {
         notes: data.notes,
       };
 
-      await localOrderService.createOrder(orderData);
+      await orderService.createOrder(orderData);
 
       // تفريغ السلة بعد إرسال الطلب
       clearCart();
