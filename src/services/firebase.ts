@@ -13,6 +13,7 @@ import {
   deleteDoc,
   startAfter,
   limit as firestoreLimit,
+  where,
 } from "firebase/firestore";
 import { Order } from "@/types/order";
 
@@ -148,6 +149,36 @@ export const orderService = {
       await deleteDoc(orderRef);
     } catch (error) {
       console.error("Error deleting order:", error);
+      throw error;
+    }
+  },
+
+  // جلب بيانات مسؤول حسب اسم المستخدم
+  async getAdminByUsername(username: string) {
+    try {
+      const q = query(collection(db, "admins"), where("username", "==", username));
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) return null;
+      return { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() };
+    } catch (error) {
+      console.error("Error fetching admin:", error);
+      throw error;
+    }
+  },
+
+  // جلب كلمة سر لوحة الإدارة من Firestore
+  async getAdminPanelPassword() {
+    try {
+      const docRef = doc(db, "adminPanel", "main");
+      const docSnap = await getDocs(collection(db, "adminPanel"));
+      // ابحث عن مستند باسم main أو أول مستند
+      let password = null;
+      docSnap.forEach((d) => {
+        if (d.id === "main") password = d.data().password;
+      });
+      return password;
+    } catch (error) {
+      console.error("Error fetching admin panel password:", error);
       throw error;
     }
   },

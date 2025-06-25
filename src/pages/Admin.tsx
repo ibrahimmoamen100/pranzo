@@ -61,6 +61,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { orderService } from "@/services/firebase";
 
 // Branch form state type
 interface BranchForm {
@@ -197,12 +198,17 @@ const Admin = () => {
 
   // Memoize handlers
   const handleLogin = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
-      if (password === "4508") {
-        setIsAuthenticated(true);
-      } else {
-        toast.error("Invalid password");
+      try {
+        const adminPassword = await orderService.getAdminPanelPassword();
+        if (password === adminPassword) {
+          setIsAuthenticated(true);
+        } else {
+          toast.error("Invalid password");
+        }
+      } catch (err) {
+        toast.error("حدث خطأ أثناء التحقق من كلمة السر");
       }
     },
     [password]
