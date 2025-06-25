@@ -40,6 +40,7 @@ import {
   MapPin,
   Trash2,
   MessageCircle,
+  Printer,
 } from "lucide-react";
 
 const PAGE_SIZE = 20;
@@ -50,6 +51,7 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [timeFilter, setTimeFilter] = useState<string>("all");
+  const [branchFilter, setBranchFilter] = useState<string>("all");
   const [lastDoc, setLastDoc] = useState<any>(null);
   const [pageStack, setPageStack] = useState<any[]>([]);
   const [isLastPage, setIsLastPage] = useState(false);
@@ -111,10 +113,16 @@ const Orders = () => {
     });
 
     // تصفية حسب الحالة
-    const filteredOrders =
+    const filteredByStatus =
       statusFilter === "all"
         ? filteredByTime
         : filteredByTime.filter((order) => order.status === statusFilter);
+
+    // تصفية حسب الفرع
+    const filteredOrders =
+      branchFilter === "all"
+        ? filteredByStatus
+        : filteredByStatus.filter((order) => order.selectedBranch === branchFilter);
 
     // إحصائيات عامة
     const totalOrders = filteredOrders.length;
@@ -197,7 +205,7 @@ const Orders = () => {
       dailyStats,
       filteredOrders,
     });
-  }, [orders, statusFilter, timeFilter]);
+  }, [orders, statusFilter, timeFilter, branchFilter]);
 
   // جلب الصفحة التالية
   const fetchNextPage = async () => {
@@ -269,6 +277,404 @@ ${order.status === 'delivered' ? '✅ *تم توصيل طلبك بنجاح! نت
     window.open(whatsappUrl, '_blank');
   };
 
+  // دالة طباعة تفاصيل الطلب
+  const printOrderDetails = (order: Order) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>إيصال طلب - ${order.id}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+          
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          @media print {
+            body { margin: 0; padding: 0; }
+            .no-print { display: none; }
+            .receipt { box-shadow: none; }
+          }
+          
+          body {
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+          }
+          
+          .receipt {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            position: relative;
+          }
+          
+          .receipt::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+          }
+          
+          .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            position: relative;
+          }
+          
+          .header::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 10px solid #764ba2;
+          }
+          
+          .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          }
+          
+          .header h2 {
+            font-size: 18px;
+            font-weight: 400;
+            opacity: 0.9;
+            margin-bottom: 15px;
+          }
+          
+          .order-number {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+            backdrop-filter: blur(10px);
+          }
+          
+          .status-badge {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            position: relative;
+          }
+          
+          .status-badge::before {
+            content: '✅';
+            margin-left: 8px;
+            font-size: 18px;
+          }
+          
+          .info-section {
+            padding: 20px;
+            border-bottom: 1px solid #ecf0f1;
+          }
+          
+          .info-section:last-child {
+            border-bottom: none;
+          }
+          
+          .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          
+          .section-title::before {
+            content: '📍';
+            font-size: 18px;
+          }
+          
+          .customer-info .section-title::before {
+            content: '👤';
+          }
+          
+          .order-details .section-title::before {
+            content: '📋';
+          }
+          
+          .products-section .section-title::before {
+            content: '🍽️';
+          }
+          
+          .total-section .section-title::before {
+            content: '💰';
+          }
+          
+          .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f8f9fa;
+          }
+          
+          .info-row:last-child {
+            border-bottom: none;
+          }
+          
+          .info-label {
+            font-weight: 600;
+            color: #34495e;
+            font-size: 14px;
+          }
+          
+          .info-value {
+            color: #2c3e50;
+            font-size: 14px;
+            text-align: left;
+          }
+          
+          .products-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+          }
+          
+          .products-table th {
+            background: #f8f9fa;
+            padding: 12px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #34495e;
+            border-bottom: 2px solid #e9ecef;
+          }
+          
+          .products-table td {
+            padding: 10px 8px;
+            font-size: 12px;
+            border-bottom: 1px solid #f8f9fa;
+          }
+          
+          .product-name {
+            font-weight: 600;
+            color: #2c3e50;
+          }
+          
+          .product-details {
+            font-size: 11px;
+            color: #7f8c8d;
+            margin-top: 2px;
+          }
+          
+          .total-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+            position: relative;
+          }
+          
+          .total-section::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 10px solid #667eea;
+          }
+          
+          .total-amount {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 10px 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          }
+          
+          .footer {
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            color: #7f8c8d;
+            font-size: 12px;
+          }
+          
+          .footer .thank-you {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+          }
+          
+          .print-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 20px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+          }
+          
+          .print-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+          }
+          
+          .date-time {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+            margin-top: 10px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="receipt">
+          <div class="header">
+            <h1>مطعم برانزو</h1>
+            <h2>إيصال طلب</h2>
+            <div class="order-number">#${order.id.slice(-8)}</div>
+            <div class="date-time">
+              <span>${new Date(order.createdAt).toLocaleDateString('ar-EG')}</span>
+              <span>${new Date(order.createdAt).toLocaleTimeString('ar-EG')}</span>
+            </div>
+          </div>
+          
+          <div class="status-badge">
+            الطلب جاهز للتسليم
+          </div>
+          
+          <div class="info-section customer-info">
+            <div class="section-title">معلومات العميل</div>
+            <div class="info-row">
+              <span class="info-label">الاسم:</span>
+              <span class="info-value">${order.customerName}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">الهاتف:</span>
+              <span class="info-value">${order.customerPhone}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">العنوان:</span>
+              <span class="info-value">${order.customerAddress}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">الفرع:</span>
+              <span class="info-value">${order.selectedBranch}</span>
+            </div>
+          </div>
+          
+          <div class="info-section order-details">
+            <div class="section-title">تفاصيل الطلب</div>
+            <div class="info-row">
+              <span class="info-label">الملاحظات:</span>
+              <span class="info-value">${order.notes || 'لا توجد ملاحظات'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">وقت التوصيل:</span>
+              <span class="info-value">${order.estimatedDeliveryTime ? new Date(order.estimatedDeliveryTime).toLocaleString('ar-EG') : 'غير محدد'}</span>
+            </div>
+          </div>
+          
+          <div class="info-section products-section">
+            <div class="section-title">المنتجات المطلوبة</div>
+            <table class="products-table">
+              <thead>
+                <tr>
+                  <th>المنتج</th>
+                  <th>الكمية</th>
+                  <th>السعر</th>
+                  <th>الإجمالي</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${order.items.map(item => `
+                  <tr>
+                    <td>
+                      <div class="product-name">${item.productName}</div>
+                      ${item.selectedSize || item.selectedExtra ? `
+                        <div class="product-details">
+                          ${item.selectedSize ? `الحجم: ${item.selectedSize}` : ''}
+                          ${item.selectedExtra ? `إضافات: ${item.selectedExtra}` : ''}
+                        </div>
+                      ` : ''}
+                    </td>
+                    <td>${item.quantity}</td>
+                    <td>${item.price} ج.م</td>
+                    <td>${item.price * item.quantity} ج.م</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="total-section">
+            <div class="section-title">إجمالي الطلب</div>
+            <div class="total-amount">${order.totalAmount} ج.م</div>
+          </div>
+          
+          <div class="footer">
+            <div class="thank-you">شكراً لثقتك بنا 🙏</div>
+            <div>نتمنى لك وجبة شهية</div>
+            <div>للاستفسار: ${order.selectedBranch}</div>
+          </div>
+        </div>
+        
+        <div class="no-print" style="text-align: center; margin-top: 30px;">
+          <button class="print-button" onclick="window.print()">🖨️ طباعة الإيصال</button>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // طباعة تلقائية بعد تحميل الصفحة
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 500);
+    };
+  };
+
   // تحديث حالة الطلب مع تحديث فوري للواجهة
   const handleStatusChange = async (
     orderId: string,
@@ -285,6 +691,14 @@ ${order.status === 'delivered' ? '✅ *تم توصيل طلبك بنجاح! نت
             : order
         )
       );
+      
+      // طباعة تلقائية إذا كانت الحالة "جاهز"
+      if (newStatus === "ready") {
+        const order = orders.find(o => o.id === orderId);
+        if (order) {
+          printOrderDetails(order);
+        }
+      }
       
       toast.success("تم تحديث حالة الطلب بنجاح");
     } catch (error) {
@@ -404,6 +818,17 @@ ${order.status === 'delivered' ? '✅ *تم توصيل طلبك بنجاح! نت
                 <SelectItem value="ready">جاهز</SelectItem>
                 <SelectItem value="delivered">تم التوصيل</SelectItem>
                 <SelectItem value="cancelled">ملغي</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="تصفية حسب الفرع" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع الفروع</SelectItem>
+                {Array.from(new Set(orders.map(order => order.selectedBranch))).map(branch => (
+                  <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -767,6 +1192,13 @@ ${order.status === 'delivered' ? '✅ *تم توصيل طلبك بنجاح! نت
                               <SelectItem value="cancelled">ملغي</SelectItem>
                             </SelectContent>
                           </Select>
+                          <button
+                            className="ml-2 text-blue-600 hover:text-blue-800"
+                            title="طباعة تفاصيل الطلب"
+                            onClick={() => printOrderDetails(order)}
+                          >
+                            <Printer className="w-5 h-5" />
+                          </button>
                           <button
                             className="ml-2 text-green-600 hover:text-green-800"
                             title="إرسال رسالة واتساب"
