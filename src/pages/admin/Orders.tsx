@@ -39,6 +39,7 @@ import {
   Users,
   MapPin,
   Trash2,
+  MessageCircle,
 } from "lucide-react";
 
 const PAGE_SIZE = 20;
@@ -52,6 +53,7 @@ const Orders = () => {
   const [lastDoc, setLastDoc] = useState<any>(null);
   const [pageStack, setPageStack] = useState<any[]>([]);
   const [isLastPage, setIsLastPage] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
 
   // جلب أول صفحة من الطلبات
   useEffect(() => {
@@ -66,34 +68,9 @@ const Orders = () => {
     });
   }, []);
 
-  // جلب الصفحة التالية
-  const fetchNextPage = async () => {
-    if (!lastDoc) return;
-    setLoading(true);
-    const { orders: nextOrders, lastDoc: nextLastDoc } = await orderService.getOrdersPaginated({ pageSize: PAGE_SIZE, lastDoc });
-    setPageStack((prev) => [...prev, lastDoc]);
-    setOrders(nextOrders);
-    setLastDoc(nextLastDoc);
-    setIsLastPage(!nextLastDoc);
-    setLoading(false);
-  };
-
-  // جلب الصفحة السابقة
-  const fetchPrevPage = async () => {
-    if (pageStack.length === 0) return;
-    setLoading(true);
-    const prevStack = [...pageStack];
-    const prevLastDoc = prevStack.pop();
-    const { orders: prevOrders, lastDoc: prevDoc } = await orderService.getOrdersPaginated({ pageSize: PAGE_SIZE, lastDoc: prevStack[prevStack.length - 1] || null });
-    setOrders(prevOrders);
-    setLastDoc(prevDoc);
-    setPageStack(prevStack);
-    setIsLastPage(false);
-    setLoading(false);
-  };
-
-  // تحليل البيانات
-  const analytics = useMemo(() => {
+  // تحديث الإحصائيات عند تغيير الطلبات
+  useEffect(() => {
+    // حساب الإحصائيات فورًا عند تغيير الطلبات
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -194,7 +171,7 @@ const Orders = () => {
       dailyStats[day]++;
     });
 
-    return {
+    setAnalyticsData({
       totalOrders,
       totalRevenue,
       averageOrderValue,
@@ -204,18 +181,99 @@ const Orders = () => {
       hourlyStats,
       dailyStats,
       filteredOrders,
-    };
+    });
   }, [orders, statusFilter, timeFilter]);
 
+  // جلب الصفحة التالية
+  const fetchNextPage = async () => {
+    if (!lastDoc) return;
+    setLoading(true);
+    const { orders: nextOrders, lastDoc: nextLastDoc } = await orderService.getOrdersPaginated({ pageSize: PAGE_SIZE, lastDoc });
+    setPageStack((prev) => [...prev, lastDoc]);
+    setOrders(nextOrders);
+    setLastDoc(nextLastDoc);
+    setIsLastPage(!nextLastDoc);
+    setLoading(false);
+  };
+
+  // جلب الصفحة السابقة
+  const fetchPrevPage = async () => {
+    if (pageStack.length === 0) return;
+    setLoading(true);
+    const prevStack = [...pageStack];
+    const prevLastDoc = prevStack.pop();
+    const { orders: prevOrders, lastDoc: prevDoc } = await orderService.getOrdersPaginated({ pageSize: PAGE_SIZE, lastDoc: prevStack[prevStack.length - 1] || null });
+    setOrders(prevOrders);
+    setLastDoc(prevDoc);
+    setPageStack(prevStack);
+    setIsLastPage(false);
+    setLoading(false);
+  };
+
+  // دالة حذف الطلب
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!window.confirm("هل أنت متأكد أنك تريد حذف هذا الطلب نهائيًا؟")) return;
+    try {
+      await orderService.deleteOrder(orderId);
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      toast.success("تم حذف الطلب بنجاح");
+    } catch (error) {
+      toast.error("حدث خطأ أثناء حذف الطلب. حاول مرة أخرى.");
+    }
+  };
+
+  // دالة إرسال رسالة واتساب
+  const sendWhatsAppMessage = (order: Order) => {
+    const statusText = getStatusText(order.status);
+    const orderNumber = order.id.slice(-8);
+    const customerPhone = '20' + order.customerPhone.replace(/\D/g, '');
+    
+    const message = `مرحباً ${order.customerName} 👋
+
+📦 *تحديث حالة طلبك*
+رقم الطلب: #${orderNumber}
+
+🔄 *الحالة الحالية:* ${statusText}
+
+📋 *تفاصيل الطلب:*
+${order.items.map(item => `• ${item.quantity}x ${item.productName}${item.selectedSize ? ` (${item.selectedSize})` : ''}${item.selectedExtra ? ` + ${item.selectedExtra}` : ''}`).join('\n')}
+
+💰 *المبلغ الإجمالي:* ${formatPrice(order.totalAmount)} جنيه
+
+🏪 *الفرع:* ${order.selectedBranch}
+
+${order.status === 'ready' ? '🚚 *الطلب جاهز للتوصيل! سيتم التواصل معك قريباً*' : ''}
+${order.status === 'delivered' ? '✅ *تم توصيل طلبك بنجاح! نتمنى أن ينال إعجابك*' : ''}
+
+شكراً لثقتك بنا 🙏
+للاستفسار: ${order.selectedBranch}`;
+
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${customerPhone}?text=${encodedMessage}`;
+    
+    window.open(whatsappUrl, '_blank');
+  };
+
+  // تحديث حالة الطلب مع تحديث فوري للواجهة
   const handleStatusChange = async (
     orderId: string,
     newStatus: Order["status"]
   ) => {
     try {
       await orderService.updateOrderStatus(orderId, newStatus);
+      
+      // تحديث الطلب في القائمة المحلية فورًا
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderId
+            ? { ...order, status: newStatus, updatedAt: new Date() }
+            : order
+        )
+      );
+      
       toast.success("تم تحديث حالة الطلب بنجاح");
     } catch (error) {
-      toast.error("حدث خطأ في تحديث حالة الطلب");
+      toast.error("حدث خطأ أثناء تحديث حالة الطلب");
     }
   };
 
@@ -270,18 +328,6 @@ const Orders = () => {
     return days[dayIndex];
   };
 
-  // دالة حذف الطلب
-  const handleDeleteOrder = async (orderId: string) => {
-    if (!window.confirm("هل أنت متأكد أنك تريد حذف هذا الطلب نهائيًا؟")) return;
-    try {
-      await orderService.deleteOrder(orderId);
-      setOrders((prev) => prev.filter((o) => o.id !== orderId));
-      toast.success("تم حذف الطلب بنجاح");
-    } catch (error) {
-      toast.error("حدث خطأ أثناء حذف الطلب. حاول مرة أخرى.");
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -289,6 +335,18 @@ const Orders = () => {
         <Navbar />
         <div className="container py-8">
           <div className="text-center">جاري التحميل...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!analyticsData) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Topbar />
+        <Navbar />
+        <div className="container py-8">
+          <div className="text-center">جاري تحميل البيانات...</div>
         </div>
       </div>
     );
@@ -341,7 +399,7 @@ const Orders = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analytics.totalOrders}</div>
+              <div className="text-2xl font-bold">{analyticsData.totalOrders}</div>
               <p className="text-xs text-muted-foreground">
                 {timeFilter !== "all"
                   ? `في ${
@@ -365,10 +423,10 @@ const Orders = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatPrice(analytics.totalRevenue)} جنيه
+                {formatPrice(analyticsData.totalRevenue)} جنيه
               </div>
               <p className="text-xs text-muted-foreground">
-                متوسط الطلب: {formatPrice(analytics.averageOrderValue)} جنيه
+                متوسط الطلب: {formatPrice(analyticsData.averageOrderValue)} جنيه
               </p>
             </CardContent>
           </Card>
@@ -382,9 +440,9 @@ const Orders = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                {analytics.statusStats.pending +
-                  analytics.statusStats.confirmed +
-                  analytics.statusStats.preparing}
+                {analyticsData.statusStats.pending +
+                  analyticsData.statusStats.confirmed +
+                  analyticsData.statusStats.preparing}
               </div>
               <p className="text-xs text-muted-foreground">
                 في الانتظار + مؤكد + قيد التحضير
@@ -401,7 +459,7 @@ const Orders = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {analytics.statusStats.delivered}
+                {analyticsData.statusStats.delivered}
               </div>
               <p className="text-xs text-muted-foreground">تم التوصيل بنجاح</p>
             </CardContent>
@@ -428,7 +486,7 @@ const Orders = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-yellow-600">
-                    {analytics.statusStats.pending}
+                    {analyticsData.statusStats.pending}
                   </div>
                 </CardContent>
               </Card>
@@ -442,7 +500,7 @@ const Orders = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-orange-600">
-                    {analytics.statusStats.preparing}
+                    {analyticsData.statusStats.preparing}
                   </div>
                 </CardContent>
               </Card>
@@ -456,7 +514,7 @@ const Orders = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-green-600">
-                    {analytics.statusStats.ready}
+                    {analyticsData.statusStats.ready}
                   </div>
                 </CardContent>
               </Card>
@@ -473,7 +531,7 @@ const Orders = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {analytics.hourlyStats.map((count, hour) => (
+                    {analyticsData.hourlyStats.map((count, hour) => (
                       <div key={hour} className="flex items-center gap-2">
                         <span className="text-xs w-8">{hour}:00</span>
                         <div className="flex-1 bg-gray-200 rounded-full h-2">
@@ -481,7 +539,7 @@ const Orders = () => {
                             className="bg-blue-500 h-2 rounded-full"
                             style={{
                               width: `${
-                                (count / Math.max(...analytics.hourlyStats)) *
+                                (count / Math.max(...analyticsData.hourlyStats)) *
                                 100
                               }%`,
                             }}
@@ -503,7 +561,7 @@ const Orders = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {analytics.dailyStats.map((count, day) => (
+                    {analyticsData.dailyStats.map((count, day) => (
                       <div key={day} className="flex items-center gap-2">
                         <span className="text-xs w-16">{getDayName(day)}</span>
                         <div className="flex-1 bg-gray-200 rounded-full h-2">
@@ -511,7 +569,7 @@ const Orders = () => {
                             className="bg-green-500 h-2 rounded-full"
                             style={{
                               width: `${
-                                (count / Math.max(...analytics.dailyStats)) *
+                                (count / Math.max(...analyticsData.dailyStats)) *
                                 100
                               }%`,
                             }}
@@ -545,7 +603,7 @@ const Orders = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {analytics.topProducts.map((product, index) => (
+                    {analyticsData.topProducts.map((product, index) => (
                       <TableRow key={product.name}>
                         <TableCell className="font-bold">
                           #{index + 1}
@@ -582,7 +640,7 @@ const Orders = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {analytics.topBranches.map((branch, index) => (
+                    {analyticsData.topBranches.map((branch, index) => (
                       <TableRow key={branch.name}>
                         <TableCell className="font-bold">
                           #{index + 1}
@@ -605,7 +663,7 @@ const Orders = () => {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  الطلبات ({analytics.filteredOrders.length})
+                  الطلبات ({analyticsData.filteredOrders.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -623,7 +681,7 @@ const Orders = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {analytics.filteredOrders.map((order) => (
+                    {analyticsData.filteredOrders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-mono text-sm">
                           #{order.id.slice(-8)}
@@ -689,6 +747,13 @@ const Orders = () => {
                               <SelectItem value="cancelled">ملغي</SelectItem>
                             </SelectContent>
                           </Select>
+                          <button
+                            className="ml-2 text-green-600 hover:text-green-800"
+                            title="إرسال رسالة واتساب"
+                            onClick={() => sendWhatsAppMessage(order)}
+                          >
+                            <MessageCircle className="w-5 h-5" />
+                          </button>
                           <button
                             className="ml-2 text-red-600 hover:text-red-800"
                             title="حذف الطلب"
