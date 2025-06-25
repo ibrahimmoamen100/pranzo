@@ -54,19 +54,34 @@ const Orders = () => {
   const [pageStack, setPageStack] = useState<any[]>([]);
   const [isLastPage, setIsLastPage] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [newOrderBanner, setNewOrderBanner] = useState(false);
 
-  // جلب أول صفحة من الطلبات
+  // جلب أول صفحة من الطلبات (استبدلها بالاستماع اللحظي)
   useEffect(() => {
     setLoading(true);
     setPageStack([]);
     setLastDoc(null);
-    orderService.getOrdersPaginated({ pageSize: PAGE_SIZE }).then(({ orders, lastDoc }) => {
-      setOrders(orders);
-      setLastDoc(lastDoc);
-      setIsLastPage(!lastDoc);
+    let firstLoad = true;
+    let prevOrderIds: string[] = [];
+    const unsubscribe = orderService.subscribeToOrders((ordersList) => {
+      setOrders((prevOrders) => {
+        const currentIds = ordersList.map((o) => o.id);
+        // إذا لم يكن أول تحميل، تحقق من وجود معرف جديد
+        if (!firstLoad) {
+          const newIds = currentIds.filter(id => !prevOrderIds.includes(id));
+          if (newIds.length > 0 && activeTab === "orders") {
+            setNewOrderBanner(true);
+          }
+        }
+        prevOrderIds = currentIds;
+        firstLoad = false;
+        return ordersList;
+      });
       setLoading(false);
     });
-  }, []);
+    return () => unsubscribe();
+  }, [activeTab]);
 
   // تحديث الإحصائيات عند تغيير الطلبات
   useEffect(() => {
@@ -358,6 +373,11 @@ ${order.status === 'delivered' ? '✅ *تم توصيل طلبك بنجاح! نت
       <Navbar />
 
       <div className="container py-8">
+        {newOrderBanner && activeTab === "orders" && (
+          <div className="bg-green-600 text-white text-center py-3 mb-4 rounded-lg text-lg font-bold animate-bounce">
+            تم إضافة طلب جديد! <button className="ml-4 underline" onClick={() => setNewOrderBanner(false)}>إخفاء</button>
+          </div>
+        )}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">إدارة الطلبات</h1>
           <div className="flex gap-2">
@@ -466,7 +486,7 @@ ${order.status === 'delivered' ? '✅ *تم توصيل طلبك بنجاح! نت
           </Card>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
             <TabsTrigger value="products">أفضل المنتجات</TabsTrigger>
