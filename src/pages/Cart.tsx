@@ -389,11 +389,11 @@ const Cart = () => {
                               {item.product.sizesWithPrices &&
                                 item.product.sizesWithPrices.length > 0 && (
                                   <Select
-                                    value={item.selectedSize || undefined}
+                                    value={item.selectedSize || "none"}
                                     onValueChange={(value) =>
                                       updateCartItemOptions(
                                         item.product.id,
-                                        value,
+                                        value === "none" ? undefined : value,
                                         item.selectedExtra
                                       )
                                     }
@@ -402,6 +402,7 @@ const Cart = () => {
                                       <SelectValue placeholder="اختر الحجم" />
                                     </SelectTrigger>
                                     <SelectContent>
+                                      <SelectItem value="none">بدون حجم</SelectItem>
                                       {item.product.sizesWithPrices.map(
                                         (sizeObj, i) => (
                                           <SelectItem
@@ -422,12 +423,12 @@ const Cart = () => {
                               {item.product.extras &&
                                 item.product.extras.length > 0 && (
                                   <Select
-                                    value={item.selectedExtra || undefined}
+                                    value={item.selectedExtra || "none"}
                                     onValueChange={(value) =>
                                       updateCartItemOptions(
                                         item.product.id,
                                         item.selectedSize,
-                                        value || undefined
+                                        value === "none" ? undefined : value
                                       )
                                     }
                                   >
@@ -435,9 +436,7 @@ const Cart = () => {
                                       <SelectValue placeholder="اختر الإضافة" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value={undefined}>
-                                        بدون إضافة
-                                      </SelectItem>
+                                      <SelectItem value="none">بدون إضافة</SelectItem>
                                       {item.product.extras.map(
                                         (extraObj, i) => (
                                           <SelectItem

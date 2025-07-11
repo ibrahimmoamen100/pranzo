@@ -26,6 +26,8 @@ import {
   Trash2,
   ShoppingCart,
   BarChart3,
+  LogOut,
+  Users,
 } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
@@ -62,6 +64,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { orderService } from "@/services/firebase";
+import { isAdminAuthenticated, setAdminAuth, clearAdminAuth } from "@/utils/auth";
 
 // Branch form state type
 interface BranchForm {
@@ -71,6 +74,8 @@ interface BranchForm {
   openTime: string;
   closeTime: string;
 }
+
+const BASE_URL = import.meta.env.DEV ? "http://localhost:3001" : "";
 
 const Admin = () => {
   const { t } = useTranslation();
@@ -86,12 +91,26 @@ const Admin = () => {
     category: undefined as string | undefined,
     supplier: undefined as string | undefined,
     isArchived: false,
-    archivedStatus: "active" as "all" | "archived" | "active",
+    archivedStatus: "all" as "all" | "archived" | "active",
     specialOffer: "all" as "all" | "with-offer" | "without-offer",
   });
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   const { products, addProduct, deleteProduct, updateProduct } = useStore();
+
+  // Check authentication on component mount
+  useEffect(() => {
+    if (isAdminAuthenticated()) {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  // Redirect to orders if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Stay on admin page, don't redirect automatically
+    }
+  }, [isAuthenticated]);
 
   // Get unique suppliers from products
   const uniqueSuppliers = useMemo(() => {
@@ -203,6 +222,7 @@ const Admin = () => {
       try {
         const adminPassword = await orderService.getAdminPanelPassword();
         if (password === adminPassword) {
+          setAdminAuth(); // Save to cookies for 1 day
           setIsAuthenticated(true);
         } else {
           toast.error("Invalid password");
@@ -213,6 +233,13 @@ const Admin = () => {
     },
     [password]
   );
+
+  const handleLogout = useCallback(() => {
+    clearAdminAuth();
+    setIsAuthenticated(false);
+    setPassword("");
+    toast.success("تم تسجيل الخروج بنجاح");
+  }, []);
 
   const handleExport = useCallback(() => {
     try {
@@ -478,6 +505,12 @@ const Admin = () => {
           <div className="mb-8 flex items-center justify-between">
             <h1 className="text-3xl font-bold">{t("admin.dashboard")}</h1>
             <div className="flex gap-2">
+              <Link to="/admin/cashier">
+                <Button variant="outline" className="gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  الكاشير
+                </Button>
+              </Link>
               <Link to="/admin/orders">
                 <Button variant="outline" className="gap-2">
                   <ShoppingCart className="h-4 w-4" />
@@ -490,6 +523,12 @@ const Admin = () => {
                   {t("admin.analytics")}
                 </Button>
               </Link>
+              <Link to="/admin/visitor-analytics">
+                <Button variant="outline" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  {t("admin.visitorAnalytics")}
+                </Button>
+              </Link>
               <Button
                 onClick={handleExport}
                 className="gap-2"
@@ -497,6 +536,15 @@ const Admin = () => {
               >
                 <Download className="h-4 w-4" aria-hidden="true" />
                 {t("admin.exportStore")}
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="destructive"
+                className="gap-2"
+                aria-label="تسجيل الخروج"
+              >
+                <LogOut className="h-4 w-4" />
+                تسجيل الخروج
               </Button>
             </div>
           </div>

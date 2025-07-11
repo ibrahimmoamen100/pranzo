@@ -9,6 +9,10 @@ import path from "path";
 import fs from "fs";
 import cors from "cors";
 
+// Import for thermal printer support (will be loaded dynamically)
+let escpos: any = null;
+let escposUSB: any = null;
+
 const app = express();
 const port = 3001;
 
@@ -76,6 +80,339 @@ const writeStoreData = (data: any) => {
     return false;
   }
 };
+
+// ========== ORDERS & ANALYTICS ENDPOINTS ========== //
+
+// Add new order
+app.post("/api/orders", (req: Request, res: Response) => {
+  try {
+    const newOrder = req.body;
+    const storeData = readStoreData();
+
+    // Ensure orders array exists
+    if (!Array.isArray(storeData.orders)) {
+      storeData.orders = [];
+    }
+
+    // Generate order number and code if not provided
+    if (!newOrder.orderNumber) {
+      const cashierOrders = storeData.orders.filter((o: any) => o.source === "cashier");
+      newOrder.orderNumber = cashierOrders.length + 1;
+    }
+    
+    if (!newOrder.orderCode) {
+      newOrder.orderCode = `ORD-${newOrder.orderNumber.toString().padStart(3, '0')}`;
+    }
+
+    // Add timestamp
+    newOrder.createdAt = newOrder.createdAt || new Date().toISOString();
+    storeData.orders.push(newOrder);
+
+    // Save back to file
+    if (writeStoreData(storeData)) {
+      res.status(201).json({ success: true, order: newOrder });
+    } else {
+      res.status(500).json({ error: "Failed to add order" });
+    }
+  } catch (error) {
+    console.error("Error adding order:", error);
+    res.status(500).json({ error: "Failed to add order" });
+  }
+});
+
+// Get all orders
+app.get("/api/orders", (req: Request, res: Response) => {
+  try {
+    const storeData = readStoreData();
+    res.json(storeData.orders || []);
+  } catch (error) {
+    console.error("Error reading orders:", error);
+    res.status(500).json({ error: "Failed to read orders" });
+  }
+});
+
+// Delete order by ID
+app.delete("/api/orders/:id", ((req: Request, res: Response) => {
+  try {
+    const orderId = req.params.id;
+    const storeData = readStoreData();
+    
+    if (!Array.isArray(storeData.orders)) {
+      storeData.orders = [];
+    }
+    
+    const orderIndex = storeData.orders.findIndex((order: any) => order.orderCode === orderId || order.id === orderId);
+    
+    if (orderIndex === -1) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    
+    storeData.orders.splice(orderIndex, 1);
+    
+    if (writeStoreData(storeData)) {
+      res.json({ success: true, message: "Order deleted successfully" });
+    } else {
+      res.status(500).json({ error: "Failed to delete order" });
+    }
+  } catch (error) {
+    console.error("Error deleting order:", error);
+    res.status(500).json({ error: "Failed to delete order" });
+  }
+}) as unknown as express.RequestHandler);
+
+// Clear all orders
+app.delete("/api/orders", ((req: Request, res: Response) => {
+  try {
+    const storeData = readStoreData();
+    
+    // Clear all orders
+    storeData.orders = [];
+    
+    if (writeStoreData(storeData)) {
+      res.json({ success: true, message: "تم مسح جميع الطلبات بنجاح" });
+    } else {
+      res.status(500).json({ error: "فشل في مسح الطلبات" });
+    }
+  } catch (error) {
+    console.error("Error clearing orders:", error);
+    res.status(500).json({ error: "فشل في مسح الطلبات" });
+  }
+}) as unknown as express.RequestHandler);
+
+// Print receipt to thermal printer
+app.post("/api/print-receipt", async (req: Request, res: Response) => {
+  try {
+    const receiptData = req.body;
+    
+    // هنا يمكن إضافة كود للاتصال بطابعة الإيصالات الحرارية
+    // مثال باستخدام مكتبة مثل node-thermal-printer أو escpos
+    
+    console.log("Printing receipt:", receiptData);
+    
+    // إرسال أوامر الطباعة للطابعة الحرارية
+    // هذا مثال بسيط - ستحتاج لتثبيت مكتبة مناسبة للطابعة
+    
+    // استخدام مكتبة escpos للطباعة على طابعة الإيصالات الحرارية
+    if (!escpos) {
+      escpos = await import('escpos');
+      escposUSB = await import('escpos-usb');
+      escpos.default.USB = escposUSB.default;
+    }
+    
+    const device = new escpos.default.USB();
+    const options = { encoding: "GB18030" };
+    const printer = new escpos.default.Printer(device, options);
+    
+    device.open(function(error){
+      if (error) {
+        console.error('خطأ في الاتصال بالطابعة:', error);
+        res.status(500).json({ error: "فشل في الاتصال بالطابعة" });
+        return;
+      }
+      
+      printer
+        .font('a')
+        .align('ct')
+        .style('b')
+        .size(1, 1)
+        .text(receiptData.storeName)
+        .text(receiptData.storePhone)
+        .text(receiptData.storeAddress)
+        .drawLine()
+        .text(`طلب رقم: ${receiptData.orderNumber}`)
+        .text(`كود الطلب: ${receiptData.orderCode}`)
+        .text(`التاريخ: ${new Date(receiptData.createdAt).toLocaleString('ar-EG')}`)
+        .drawLine();
+      
+      receiptData.items.forEach((item: any) => {
+        const itemPrice = Number(item.price) + (item.sizePrice || 0) + (item.extraPrice || 0);
+        const itemTotal = itemPrice * item.quantity;
+        
+        printer
+          .align('lt')
+          .text(item.productName)
+          .text(`${item.quantity} × ${itemPrice} ج.م = ${itemTotal} ج.م`);
+        
+        if (item.selectedSize || item.selectedExtra) {
+          printer.text(`  ${item.selectedSize || ''} ${item.selectedExtra || ''}`);
+        }
+      });
+      
+      printer
+        .align('rt')
+        .drawLine()
+        .text(`الإجمالي: ${receiptData.totalAmount} ج.م`)
+        .text(`المدفوع: ${receiptData.paid} ج.م`)
+        .text(`الباقي: ${receiptData.change} ج.م`)
+        .drawLine()
+        .align('ct')
+        .text("شكراً لزيارتكم")
+        .text("نتمنى لكم تجربة طعام ممتعة")
+        .text("نرجو العودة مرة أخرى")
+        .cut()
+        .close();
+    });
+    
+    // تم إرسال البيانات للطباعة بنجاح
+    res.json({ 
+      success: true, 
+      message: "تم إرسال الكوبون للطباعة بنجاح"
+    });
+    
+  } catch (error) {
+    console.error("Error printing receipt:", error);
+    res.status(500).json({ error: "Failed to print receipt" });
+  }
+});
+
+// Get analytics
+app.get("/api/analytics", (req: Request, res: Response) => {
+  try {
+    const storeData = readStoreData();
+    const orders = storeData.orders || [];
+    const products = storeData.products || [];
+    
+    // Get date range from query params (default: last 30 days)
+    const days = parseInt(req.query.days as string) || 30;
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Filter orders by date range
+    const filteredOrders = orders.filter((o: any) => {
+      const orderDate = new Date(o.createdAt);
+      return orderDate >= startDate && orderDate <= endDate;
+    });
+
+    // Today's data
+    const today = new Date().toISOString().slice(0, 10);
+    const todaysOrders = orders.filter((o: any) => (o.createdAt || '').slice(0, 10) === today);
+
+    // Basic stats
+    const totalOrders = filteredOrders.length;
+    const totalRevenue = filteredOrders.reduce((sum: number, o: any) => sum + (o.totalAmount || 0), 0);
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    // Today's stats
+    const todaysRevenue = todaysOrders.reduce((sum: number, o: any) => sum + (o.totalAmount || 0), 0);
+    const todaysOrdersCount = todaysOrders.length;
+
+    // Product analytics
+    const productStats: Record<string, { name: string; quantity: number; revenue: number; orders: number }> = {};
+    
+    filteredOrders.forEach((order: any) => {
+      if (Array.isArray(order.items)) {
+        order.items.forEach((item: any) => {
+          if (!productStats[item.productId]) {
+            const product = products.find((p: any) => p.id === item.productId);
+            productStats[item.productId] = {
+              name: product?.name || 'Unknown Product',
+              quantity: 0,
+              revenue: 0,
+              orders: 0
+            };
+          }
+          const itemTotal = (Number(item.price) + (item.sizePrice || 0) + (item.extraPrice || 0)) * item.quantity;
+          productStats[item.productId].quantity += item.quantity || 1;
+          productStats[item.productId].revenue += itemTotal;
+          productStats[item.productId].orders += 1;
+        });
+      }
+    });
+
+    // Top selling products
+    const topProducts = Object.entries(productStats)
+      .map(([id, stats]) => ({ id, ...stats }))
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 10);
+
+    // Hourly sales analysis
+    const hourlyStats: Record<number, { orders: number; revenue: number }> = {};
+    for (let i = 0; i < 24; i++) {
+      hourlyStats[i] = { orders: 0, revenue: 0 };
+    }
+
+    filteredOrders.forEach((order: any) => {
+      const orderDate = new Date(order.createdAt);
+      const hour = orderDate.getHours();
+      hourlyStats[hour].orders += 1;
+      hourlyStats[hour].revenue += order.totalAmount || 0;
+    });
+
+    // Daily sales for chart
+    const dailyStats: Record<string, { orders: number; revenue: number }> = {};
+    for (let i = 0; i < days; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().slice(0, 10);
+      dailyStats[dateStr] = { orders: 0, revenue: 0 };
+    }
+
+    filteredOrders.forEach((order: any) => {
+      const orderDate = new Date(order.createdAt);
+      const dateStr = orderDate.toISOString().slice(0, 10);
+      if (dailyStats[dateStr]) {
+        dailyStats[dateStr].orders += 1;
+        dailyStats[dateStr].revenue += order.totalAmount || 0;
+      }
+    });
+
+    // Category analytics
+    const categoryStats: Record<string, { orders: number; revenue: number; quantity: number }> = {};
+    filteredOrders.forEach((order: any) => {
+      if (Array.isArray(order.items)) {
+        order.items.forEach((item: any) => {
+          const product = products.find((p: any) => p.id === item.productId);
+          const category = product?.category || 'Unknown';
+          
+          if (!categoryStats[category]) {
+            categoryStats[category] = { orders: 0, revenue: 0, quantity: 0 };
+          }
+          
+          const itemTotal = (Number(item.price) + (item.sizePrice || 0) + (item.extraPrice || 0)) * item.quantity;
+          categoryStats[category].orders += 1;
+          categoryStats[category].revenue += itemTotal;
+          categoryStats[category].quantity += item.quantity || 1;
+        });
+      }
+    });
+
+    res.json({
+      // Basic stats
+      totalOrders,
+      totalRevenue,
+      averageOrderValue,
+      todaysRevenue,
+      todaysOrdersCount,
+      
+      // Product analytics
+      topProducts,
+      
+      // Time analytics
+      hourlyStats: Object.entries(hourlyStats).map(([hour, stats]) => ({
+        hour: parseInt(hour),
+        ...stats
+      })),
+      
+      // Daily chart data
+      dailyStats: Object.entries(dailyStats)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, stats]) => ({
+          date,
+          ...stats
+        })),
+      
+      // Category analytics
+      categoryStats: Object.entries(categoryStats).map(([category, stats]) => ({
+        category,
+        ...stats
+      }))
+    });
+  } catch (error) {
+    console.error("Error calculating analytics:", error);
+    res.status(500).json({ error: "Failed to calculate analytics" });
+  }
+});
 
 // Save store data endpoint
 app.post("/api/save-store", ((req: Request, res: Response) => {

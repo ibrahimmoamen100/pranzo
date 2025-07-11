@@ -14,6 +14,7 @@ import {
   startAfter,
   limit as firestoreLimit,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { Order } from "@/types/order";
 
@@ -181,5 +182,16 @@ export const orderService = {
       console.error("Error fetching admin panel password:", error);
       throw error;
     }
+  },
+
+  clearAllOrders: async () => {
+    // حذف جميع الطلبات من مجموعة orders (Firebase v9+)
+    const ordersCol = collection(db, "orders");
+    const snapshot = await getDocs(ordersCol);
+    const batch = writeBatch(db);
+    snapshot.forEach((docSnap) => {
+      batch.delete(docSnap.ref);
+    });
+    await batch.commit();
   },
 };

@@ -410,6 +410,7 @@
     "dashboard": "لوحة التحكم",
     "orders": "إدارة الطلبات",
     "analytics": "إحصائيات الزوار",
+    "visitorAnalytics": "تحليل الزوار",
     "exportStore": "تصدير بيانات المتجر",
     "branches": {
       "title": "إضافة فرع جديد",

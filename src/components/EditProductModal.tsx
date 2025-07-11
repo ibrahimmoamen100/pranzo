@@ -440,10 +440,7 @@ export function EditProductModal({
                           {category}
                         </SelectItem>
                       ))}
-                      <SelectItem
-                        value="add-new"
-                        className="text-blue-600 font-medium"
-                      >
+                      <SelectItem value="add-new" className="text-blue-600 font-medium">
                         + إضافة تصنيف جديد
                       </SelectItem>
                     </SelectContent>
@@ -491,17 +488,11 @@ export function EditProductModal({
                     </SelectTrigger>
                     <SelectContent position="popper" sideOffset={4}>
                       {uniqueSubcategories.map((subcategory, idx) => (
-                        <SelectItem
-                          key={subcategory + "-" + idx}
-                          value={subcategory}
-                        >
+                        <SelectItem key={subcategory + "-" + idx} value={subcategory}>
                           {subcategory}
                         </SelectItem>
                       ))}
-                      <SelectItem
-                        value="add-new"
-                        className="text-blue-600 font-medium"
-                      >
+                      <SelectItem value="add-new" className="text-blue-600 font-medium">
                         + إضافة تصنيف فرعي جديد
                       </SelectItem>
                     </SelectContent>

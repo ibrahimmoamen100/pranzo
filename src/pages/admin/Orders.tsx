@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { orderService } from "@/services/firebase";
 import { Order } from "@/types/order";
 import { Navbar } from "@/components/Navbar";
 import { Topbar } from "@/components/Topbar";
+import { clearAdminAuth, isAdminAuthenticated } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,12 +43,15 @@ import {
   Trash2,
   MessageCircle,
   Printer,
+  ArrowLeft,
+  LogOut,
 } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
 const Orders = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -58,6 +63,14 @@ const Orders = () => {
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [newOrderBanner, setNewOrderBanner] = useState(false);
+
+  // التحقق من تسجيل الدخول
+  useEffect(() => {
+    if (!isAdminAuthenticated()) {
+      navigate("/admin");
+      return;
+    }
+  }, [navigate]);
 
   // جلب أول صفحة من الطلبات (استبدلها بالاستماع اللحظي)
   useEffect(() => {
@@ -242,6 +255,31 @@ const Orders = () => {
       toast.success("تم حذف الطلب بنجاح");
     } catch (error) {
       toast.error("حدث خطأ أثناء حذف الطلب. حاول مرة أخرى.");
+    }
+  };
+
+  const handleLogout = () => {
+    clearAdminAuth();
+    navigate("/admin");
+    toast.success("تم تسجيل الخروج بنجاح");
+  };
+
+  // دالة لمسح جميع الطلبات من Firebase
+  const handleClearAllOrders = async () => {
+    const confirmed = window.confirm(
+      "هل أنت متأكد من حذف جميع الطلبات؟ هذا الإجراء لا يمكن التراجع عنه!"
+    );
+    if (!confirmed) return;
+    try {
+      setLoading(true);
+      await orderService.clearAllOrders();
+      toast.success("تم حذف جميع الطلبات بنجاح");
+      setOrders([]);
+    } catch (error) {
+      console.error("Error clearing all orders:", error);
+      toast.error("فشل في حذف الطلبات");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -793,7 +831,17 @@ ${order.status === 'delivered' ? '✅ *تم توصيل طلبك بنجاح! نت
           </div>
         )}
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">إدارة الطلبات</h1>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/admin")}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              العودة إلى لوحة التحكم
+            </Button>
+            <h1 className="text-3xl font-bold">إدارة الطلبات</h1>
+          </div>
           <div className="flex gap-2">
             <Select value={timeFilter} onValueChange={setTimeFilter}>
               <SelectTrigger className="w-48">
@@ -831,6 +879,24 @@ ${order.status === 'delivered' ? '✅ *تم توصيل طلبك بنجاح! نت
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              onClick={handleLogout}
+              variant="destructive"
+              className="gap-2"
+              aria-label="تسجيل الخروج"
+            >
+              <LogOut className="h-4 w-4" />
+              تسجيل الخروج
+            </Button>
+            <Button
+              onClick={handleClearAllOrders}
+              variant="outline"
+              className="gap-2"
+              aria-label="مسح جميع الطلبات"
+            >
+              <Trash2 className="h-4 w-4" />
+              مسح جميع الطلبات
+            </Button>
           </div>
         </div>
 

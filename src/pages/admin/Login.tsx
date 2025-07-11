@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { orderService } from "@/services/firebase";
+import { setAdminAuth, isAdminAuthenticated } from "@/utils/auth";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -8,6 +9,13 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  // التحقق من تسجيل الدخول عند تحميل الصفحة
+  useEffect(() => {
+    if (isAdminAuthenticated()) {
+      navigate("/admin/orders");
+    }
+  }, [navigate]);
 
   // دالة التحقق (سيتم ربطها لاحقًا ببيانات Firestore)
   const handleLogin = async (e: React.FormEvent) => {
@@ -22,7 +30,7 @@ const Login = () => {
       } else if (admin.password !== password) {
         setError("اسم المستخدم أو كلمة المرور غير صحيحة");
       } else {
-        localStorage.setItem("isAdmin", "true");
+        setAdminAuth(); // Save to cookies for 1 day
         navigate("/admin/orders");
       }
     } catch (err) {

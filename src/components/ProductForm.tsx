@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Product, ProductSchema } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,6 +100,7 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
   const [newSizePrice, setNewSizePrice] = useState("");
   const [newExtraName, setNewExtraName] = useState("");
   const [newExtraPrice, setNewExtraPrice] = useState("");
+  const quillRef = useRef<ReactQuill>(null);
 
   // Get unique subcategories from existing products
   const getUniqueSubcategories = (category: string) => {
@@ -464,8 +465,10 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
               <div className="space-y-2">
                 <Input
                   required
-                  value={customSubcategory}
-                  onChange={(e) => setCustomSubcategory(e.target.value)}
+                  value={formData.subcategory}
+                  onChange={(e) =>
+                    setFormData({ ...formData, subcategory: e.target.value })
+                  }
                   placeholder="أدخل اسم تصنيف فرعي جديد"
                 />
                 <Button

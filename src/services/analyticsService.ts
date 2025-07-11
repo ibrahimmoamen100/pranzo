@@ -209,4 +209,18 @@ export const analyticsService = {
       console.error("Error saving pageViews to localStorage:", error);
     }
   },
+
+  // مسح جميع بيانات الزوار
+  clearAllData(): void {
+    try {
+      localStorage.removeItem("visitors");
+      localStorage.removeItem("pageViews");
+      localStorage.removeItem("visitorAnalytics");
+      localStorage.removeItem("visitorSessions");
+      localStorage.removeItem("visitorData");
+      console.log("تم مسح جميع بيانات الزوار بنجاح");
+    } catch (error) {
+      console.error("Error clearing visitor data:", error);
+    }
+  },
 };

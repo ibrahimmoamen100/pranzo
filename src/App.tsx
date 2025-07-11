@@ -16,6 +16,9 @@ const Index = lazy(() => import("./pages/Index"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
+const VisitorAnalytics = lazy(() => import("./pages/admin/VisitorAnalytics"));
+const Cashier = lazy(() => import("./pages/admin/Cashier"));
+const CashierAnalytics = lazy(() => import("./pages/admin/CashierAnalytics"));
 const Cart = lazy(() => import("./pages/Cart"));
 const Products = lazy(() => import("./pages/Products"));
 const Locations = lazy(() => import("./pages/Locations"));
@@ -73,6 +76,9 @@ const App = () => (
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/orders" element={<Orders />} />
               <Route path="/admin/analytics" element={<Analytics />} />
+              <Route path="/admin/visitor-analytics" element={<VisitorAnalytics />} />
+              <Route path="/admin/cashier" element={<Cashier />} />
+              <Route path="/admin/cashier/analytics" element={<CashierAnalytics />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/products" element={<Products />} />
               <Route path="/products/:id" element={<ProductDetails />} />

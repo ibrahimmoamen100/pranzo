@@ -338,6 +338,7 @@
     "dashboard": "Dashboard",
     "orders": "Manage Orders",
     "analytics": "Visitor Analytics",
+    "visitorAnalytics": "Visitor Analytics",
     "exportStore": "Export Store Data",
     "branches": {
       "title": "Add New Branch",
