@@ -763,6 +763,7 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
             prose-ol:marker:text-foreground"
           >
             <ReactQuill
+              ref={quillRef}
               theme="snow"
               value={formData.description}
               onChange={(value) =>

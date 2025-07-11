@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
       },
     },
     hmr: {
-      overlay: true,
+      overlay: false, // إيقاف overlay الأخطاء
       protocol: "ws",
       host: "localhost",
       timeout: 5000,
